@@ -2,3 +2,13 @@ twine==4.0.2
 wheel==0.41.2
 keyring
 keyrings.alt
+pylint
+git-pylint-commit-hook
+numpy
+pandas
+requests
+requests-toolbelt
+autopep8
+dataclasses
+dataclasses-json
+pytest

@@ -2,4 +2,5 @@
 __init__.py
 """
 
-from humanfirst.humanfirst import HelloWorld
+from humanfirst import objects
+from humanfirst import apis

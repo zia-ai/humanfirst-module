@@ -7,8 +7,10 @@ Helps in building the package with the project metadata
 import os
 from setuptools import setup, find_packages
 
+# locate where we are.
 here = os.path.abspath(os.path.dirname(__file__))
 
+# Reads in the readme file from ./humanfirst as the packaging description
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
@@ -31,8 +33,19 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     packages=find_packages(),
-    install_requires=[],
-    keywords=['python', 'hello_world', 'humanfirst', 'HumanFirst'],
+    install_requires=[
+        'pylint',
+        'git-pylint-commit-hook',
+        'numpy',
+        'pandas',
+        'requests',
+        'requests-toolbelt',
+        'autopep8',
+        'dataclasses',
+        'dataclasses-json',
+        'pytest'
+    ],
+    keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
     url='https://github.com/zia-ai/humanfirst-module',
     license='MIT',
