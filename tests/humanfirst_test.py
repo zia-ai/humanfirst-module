@@ -1,19 +1,21 @@
-#!/usr/bin/env python # pylint: disable=missing-module-docstring
-# -*- coding: utf-8 -*-
-# ***************************************************************************80**************************************120
-#
-# Set of pytest humanfirst.objects.py tests
-#
+"""
+
+Set of pytest humanfirst.objects.py tests
+
+"""
 # ***************************************************************************80**************************************120
 
+# standard imports
 import os
 import json
+
+# third party imports
 import numpy
 import pandas
 import pytest
 import humanfirst
 
-# locate where we are.
+# locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
 
 def test_load_testdata():
@@ -30,7 +32,6 @@ def test_load_testdata():
     }
 
     # read the input csv
-    # TODO: use os.path
     path_to_file=os.path.join(here,'..','examples','simple_example.csv')
     print(path_to_file)
     df = pandas.read_csv(path_to_file,
@@ -118,9 +119,10 @@ def test_write_csv():
     """test_write_csv"""
 
     # delete output file so can sure we are testing fresh each time
-    if os.path.exists("./examples/write_csv_example.csv"):
-        os.remove("./examples/write_csv_example.csv")
-    workspace = "./examples/write_csv_example.json"
+    path_to_file = os.path.join(here,'..','examples','write_csv_example.csv')
+    if os.path.exists(path_to_file):
+        os.remove(path_to_file)
+    workspace = path_to_file.replace(".csv",".json")
 
     with open(workspace, mode="r", encoding="utf8") as file_obj:
         data = json.load(file_obj)
@@ -166,24 +168,6 @@ def test_write_csv():
     assert (df[df["example_metadata-example_metadata1"]
             == 'valueA'].shape[0] == 1)
     assert df[df["example_metadata-example_metadata1"].isna()].shape[0] == 10
-
-
-# def test_write_json():
-#     """test_write_json"""
-
-#     # delete output file so can sure we are testing fresh each time
-#     output_file = "./examples/json_model_example_output.json"
-#     if os.path.exists(output_file):
-#         os.remove(output_file)
-#     input_file = "./examples/json_model_example.json"
-#     input_json = json.loads(open(input_file, 'r', encoding='utf8').read())
-
-#     simple_json_labelled.process(input_json, input_file, create_date=True)
-#     assert os.path.isfile(output_file)
-#     output_json = json.loads(open(output_file, 'r', encoding='utf8').read())
-#     examples = output_json["examples"]
-#     assert examples[0]["created_at"] == "2023-06-05T14:26:07+00:00"
-#     assert examples[1]["created_at"] == "2023-06-05T14:26:08+00:00"
 
 
 def test_read_json():

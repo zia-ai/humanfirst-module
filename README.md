@@ -8,7 +8,14 @@ HelloWorld
 * Remove any previously created virtual env `rm -rf ./venv`
 * Create virtualenv & activate `python3 -m venv venv` 
 * if bash shell `source venv/bin/activate` **In case of deactivating use "deactivate"**
+* Update PiP `python -m pip install --upgrade pip`
 * install requirements  `pip install -r requirements.txt --no-cache`
+
+## Using pytest to test everything is working fine
+Before using `pytest` command 
+
+Install humanfirst module using the following command
+`python3 -m pip install -e .`
 
 ## Build packages
 `python setup.py sdist bdist_wheel`

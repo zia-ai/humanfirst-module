@@ -14,11 +14,11 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
-        "Development Status :: 1 - Planning",
+        "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3.8",
         "Operating System :: OS Independent",
     ]
@@ -34,16 +34,12 @@ setup(
     long_description=long_description,
     packages=find_packages(),
     install_requires=[
-        'pylint',
-        'git-pylint-commit-hook',
         'numpy',
         'pandas',
         'requests',
         'requests-toolbelt',
-        'autopep8',
         'dataclasses',
-        'dataclasses-json',
-        'pytest'
+        'dataclasses-json'
     ],
     keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
@@ -51,6 +47,21 @@ setup(
     license='MIT',
     python_requires=">=3.8",
     extras_require={
-        "dev": ["twine==4.0.2", "wheel==0.41.2", "keyring", "keyrings.alt"]
+        "dev": [
+            "twine==4.0.2",
+            "wheel==0.41.2",
+            "keyring",
+            "keyrings.alt",
+            "pylint",
+            "git-pylint-commit-hook",
+            "numpy",
+            "pandas",
+            "requests",
+            "requests-toolbelt",
+            "autopep8",
+            "dataclasses",
+            "dataclasses-json",
+            "pytest"
+        ]
     }
 )

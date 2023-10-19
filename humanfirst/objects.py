@@ -1,26 +1,27 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# ***************************************************************************80**************************************120
-#
-# humanfirst.py
-#
-# a set of helper classes and methods for describing, validating and interacting with HFOBjects
-# that make up the HF JSON format
-#
-# https://numpydoc.readthedocs.io/en/latest/format.html
-#
-#
+"""
+
+humanfirst.py
+
+a set of helper classes and methods for describing, validating and interacting with HFOBjects
+that make up the HF JSON format
+
+https://numpydoc.readthedocs.io/en/latest/format.html
+
+"""
 # ***************************************************************************80**************************************120
 
+# standard imports
 import datetime
+import copy
 import hashlib
 import json
 import random
 from typing import IO, Any, Dict, List, Optional, Union
+
+# third party imports
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 import pandas
-import copy
 
 HFMetadata = Dict[str, Any]
 

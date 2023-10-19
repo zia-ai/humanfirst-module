@@ -1,9 +1,10 @@
-#!/usr/bin/env python # pylint: disable=missing-module-docstring
-# -*- coding: utf-8 -*-
-# ******************************************************************************************************************120
-#
-# Examples of how to the call the HumanFirst APIs
-#
+"""
+
+apis.py
+
+Examples of how to the call the HumanFirst APIs
+
+"""
 # *********************************************************************************************************************
 
 # standard imports
