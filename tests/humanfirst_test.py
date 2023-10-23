@@ -33,7 +33,6 @@ def test_load_testdata():
 
     # read the input csv
     path_to_file=os.path.join(here,'..','examples','simple_example.csv')
-    print(path_to_file)
     df = pandas.read_csv(path_to_file,
                          encoding='utf8', dtype=dtypes)
     assert isinstance(df, pandas.DataFrame)

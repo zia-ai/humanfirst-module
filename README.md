@@ -14,22 +14,52 @@ HelloWorld
 ## Using pytest to test everything is working fine
 Before using `pytest` command 
 
-Install humanfirst module using the following command
-`python3 -m pip install -e .`
-
 ## Build packages
 `python setup.py sdist bdist_wheel`
 
-## Set PYPI password using keyring
-Generate API token in PYPI -> Account settings
+## Test packages before uploading
+Packages can be tested using TestPYPI before uploading to PYPI - https://packaging.python.org/en/latest/guides/using-testpypi/
 
+Register in TestPYPI - https://test.pypi.org/account/register/
+
+Enable 2 factor authentication and generate API token using Account settings
+
+### Set TestPYPI password using keyring
 `keyring set system __token__`
 
-Then Enter your API token
+Then Enter your TestPYPI API token
 
-## Publish the package to PYPI
+### Publish the package to TestPYPI
+`twine upload --repository testpypi dist/*`
+
+Username: `__token__`
+
+Password: `API token`
+
+### Using TestPyPI with pip
+`pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ your-package`
+
+## Upload packages to PYPI
+Register in PYPI - https://pypi.org/account/register/
+
+Enable 2 factor authentication and generate API token using Account settings
+
+### Set PYPI password using keyring
+`keyring set system __token__`
+
+Then Enter your PYPI API token
+
+### Publish the package to PYPI
 `twine upload dist/*`
 
 Username: `__token__`
 
 Password: `API token`
+
+## To install humanfirst package locally into academy
+
+`python -m pip install -e ../humanfirst-module/`
+
+## To install humanfirst package locally into humanfirst-module
+
+`python3 -m pip install -e .`
