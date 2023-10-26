@@ -39,7 +39,8 @@ setup(
         'requests',
         'requests-toolbelt',
         'dataclasses',
-        'dataclasses-json'
+        'dataclasses-json',
+        'python-dotenv'
     ],
     keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
@@ -61,7 +62,8 @@ setup(
             "autopep8",
             "dataclasses",
             "dataclasses-json",
-            "pytest"
+            "pytest",
+            "python-dotenv"
         ]
     }
 )

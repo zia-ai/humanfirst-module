@@ -11,10 +11,12 @@ Examples of how to the call the HumanFirst APIs
 import json
 import base64
 import datetime
+import os
 
 # third party imports
 import requests
 import requests_toolbelt
+from dotenv import load_dotenv
 
 # constants
 TIMEOUT = 10
@@ -49,6 +51,13 @@ class HFAPIAuthException(Exception):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
+    
+class HFCredentialNotAvailableException(Exception):
+    """When username/password not provided by the user"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 
 # ******************************************************************************************************************120
@@ -60,8 +69,25 @@ class HFAPI:
 
     bearer_token: dict
 
-    def __init__(self, username: str, password: str):
+    def __init__(self, username: str = "", password: str = ""):
         """Initializes bearertoken"""
+
+        # load the environment variables from the .env file if present
+        load_dotenv()
+
+        if username == "":
+            # this automatically checks if the environment variable is available in CLI first
+            # and then checks the .env varaiables
+            username = os.environ.get("HF_USERNAME")
+            if username is None:
+                raise HFCredentialNotAvailableException("HF_USERNAME is not set as environment variable")
+
+        if password == "":
+            # this automatically checks if the environment variable is available in CLI first
+            # and then checks the .env varaiables
+            password = os.environ.get("HF_PASSWORD")
+            if password is None:
+                raise HFCredentialNotAvailableException("HF_PASSWORD is not set as environment variable")
 
         self.bearer_token = {
             "bearer_token": "",
