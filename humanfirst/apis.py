@@ -70,7 +70,11 @@ class HFAPI:
     bearer_token: dict
 
     def __init__(self, username: str = "", password: str = ""):
-        """Initializes bearertoken"""
+        """Initializes bearertoken
+        There are 2 ways username and password is passed onto the object
+        1. username and password could be used while instantiating the object
+        2. HF_USERNAME and HF_PASSWORD could be set as environment variables either in CLI or as .env file
+        """
 
         # load the environment variables from the .env file if present
         load_dotenv()
