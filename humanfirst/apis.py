@@ -1060,8 +1060,8 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
 
-    def get_evaluation_zip(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
-        '''Get the metdata for the intent needed'''
+    def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+        '''Get the evaluation report as zip'''
         payload = {
             "namespace": namespace,
             "playbook_id": playbook
@@ -1075,7 +1075,59 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
 
-        return response
+        return self._validate_response(response=response, url=url)
+
+    def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+        '''Get the evaluation summary as json'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook
+        }
+
+        headers = self.get_headers()
+
+        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}'
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+
+        return self._validate_response(response=response,url=url)
+
+    def list_evaluations(self, namespace: str, playbook: str) -> dict:
+        '''List all evaluations in the given playbook'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook
+        }
+
+        headers = self.get_headers()
+
+        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        args_url = f'/{namespace}/{playbook}/evaluations'
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+
+        return self._validate_response(response=response,url=url)
+
+    def get_intent_results(self, namespace: str, playbook: str, evaluation_id: str, intent_id: str) -> dict:
+        '''Get a list of training phrases that were evaluated'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook
+        }
+
+        headers = self.get_headers()
+
+        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/{intent_id}'
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+
+        return self._validate_response(response=response,url=url)
+
 
     # *****************************************************************************************************************
     # Subscriptions
