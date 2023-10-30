@@ -12,14 +12,28 @@ import json
 import base64
 import datetime
 import os
+from configparser import ConfigParser
 
 # third party imports
 import requests
 import requests_toolbelt
 from dotenv import load_dotenv
 
-# constants
-TIMEOUT = 10
+# locate where we are
+here = os.path.abspath(os.path.dirname(__file__))
+
+# CONSTANTS
+constants = ConfigParser()
+path_to_config_file = os.path.join(here,'..','setup.cfg')
+constants.read(path_to_config_file)
+
+# constants need type conversion from str to int
+TIMEOUT = int(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
+EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
+VALID = constants.get("humanfirst.CONSTANTS","VALID")
+REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
+EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
+
 
 # ******************************************************************************************************************120
 #
@@ -51,7 +65,7 @@ class HFAPIAuthException(Exception):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
-    
+
 class HFCredentialNotAvailableException(Exception):
     """When username/password not provided by the user"""
 
@@ -70,10 +84,15 @@ class HFAPI:
     bearer_token: dict
 
     def __init__(self, username: str = "", password: str = ""):
-        """Initializes bearertoken
-        There are 2 ways username and password is passed onto the object
-        1. username and password could be used while instantiating the object
-        2. HF_USERNAME and HF_PASSWORD could be set as environment variables either in CLI or as .env file
+        """
+        Initializes bearertoken
+        
+        Recommended to store the credentials only as environment variables
+        There are 4 ways username and password is passed onto the object
+        1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
+        2. You can authentivcate using Humanfirst CLI and it will set the CLI specific environment variables for you.
+        3. A .env file be placed in the root directory of the project.
+        4. username and password can be used while instantiating the object.
         """
 
         # load the environment variables from the .env file if present
@@ -97,14 +116,16 @@ class HFAPI:
             "bearer_token": "",
             "refresh_token": "",
             "expires_in": 3600,
-            "datetime": datetime.datetime.now()
+            "datetime": datetime.datetime.now(),
+            "status": EXPIRED
         }
-        auth_response = self.authorize(username=username, password=password)
+        auth_response = self._authorize(username=username, password=password)
         self.bearer_token = {
             "bearer_token": auth_response["idToken"],
             "refresh_token": auth_response["refreshToken"],
             "expires_in": int(auth_response["expiresIn"]),
-            "datetime": datetime.datetime.now()
+            "datetime": datetime.datetime.now(),
+            "status": VALID
         }
 
     def _validate_response(self, response: requests.Response, url: str, field: str = None, payload: dict = None):
@@ -139,7 +160,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags'
         response = requests.request(
@@ -154,7 +175,7 @@ class HFAPI:
             "tag_id": tag_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags/{tag_id}'
         response = requests.request(
@@ -181,7 +202,7 @@ class HFAPI:
             "updated_at": now
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags/{tag_id}'
         response = requests.request(
@@ -200,7 +221,7 @@ class HFAPI:
             "namespace": namespace
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
         response = requests.request(
@@ -214,7 +235,7 @@ class HFAPI:
             "playbook_name": name # not currently honored - fix under way
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
         response = requests.request(
@@ -228,7 +249,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}'
         response = requests.request(
@@ -263,7 +284,7 @@ class HFAPI:
             }
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/export'
         response = requests.request(
@@ -285,7 +306,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents'
         response = requests.request(
@@ -300,7 +321,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/{intent_id}'
         response = requests.request(
@@ -315,7 +336,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/revisions'
         response = requests.request(
@@ -331,7 +352,7 @@ class HFAPI:
             "update_mask": "name,id,tags" # doesn't seem to work - confirmed bug to be fixed in next release ~ 2023-09
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents'
         response = requests.request(
@@ -408,7 +429,7 @@ class HFAPI:
         data_encoded_string = base64.urlsafe_b64encode(json.dumps(workspace_as_dict,indent=2).encode('utf-8')).decode('utf-8') # pylint: disable=line-too-long
         payload = payload.replace('\"data\": \"\"',f'\"data\": \"{data_encoded_string}\"')
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/import'
         response = requests.request(
@@ -479,7 +500,7 @@ class HFAPI:
             }
         )
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         headers["Content-Type"] = payload.content_type
 
@@ -498,7 +519,7 @@ class HFAPI:
         NOTE: THIS IS NOT nlu-id!'''
         payload = {}
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = 'https://api.humanfirst.ai/v1alpha1/models'
         response = requests.request(
@@ -518,7 +539,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/nlu_engines'
         response = requests.request(
@@ -534,7 +555,7 @@ class HFAPI:
             "nlu_id": nlu_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/nlu_engines/{nlu_id}'
         response = requests.request(
@@ -572,7 +593,7 @@ class HFAPI:
             }
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/nlu:train'
         response = requests.request(
@@ -590,7 +611,7 @@ class HFAPI:
         but it needs to be the run_id of the model job not revisions which is showing export job
         TODO: update when updated'''
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         payload = {
             "namespace": "string",
@@ -624,7 +645,7 @@ class HFAPI:
             "input_utterances": sentences
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/nlu/predict/{namespace}/{playbook}/batch'
 
@@ -636,22 +657,27 @@ class HFAPI:
     # Authorisation
     # *****************************************************************************************************************
 
-    def get_headers(self) -> dict:
+    def  _get_headers(self) -> dict:
         """Produce the necessary header"""
 
         now = datetime.datetime.now()
         time_diff = now - self.bearer_token["datetime"]
-        time_diff = time_diff.seconds
+
+        assert isinstance(time_diff, datetime.timedelta)
+
+        time_diff = time_diff.seconds + EXPIRY_ADDITION
 
         # adding 60 sec to the time difference to check if ample amount of time is left for using the token
-        if time_diff >= self.bearer_token["expires_in"]:
-            print("Hi")
-            refresh_response = self.refresh_bearer_token()
+        if time_diff >= self.bearer_token["expires_in"] and self.bearer_token["status"] == VALID:
+            # print("Refresh")
+            self.bearer_token["status"] = REFRESHING
+            refresh_response = self._refresh_bearer_token()
             self.bearer_token = {
                 "bearer_token": refresh_response["id_token"],
                 "refresh_token": refresh_response["refresh_token"],
                 "expires_in": int(refresh_response["expires_in"]),
-                "datetime": datetime.datetime.now()
+                "datetime": datetime.datetime.now(),
+                "status": VALID
             }
 
         bearer_string = f'Bearer {self.bearer_token["bearer_token"]}'
@@ -663,14 +689,14 @@ class HFAPI:
         return headers
 
 
-    def authorize(self, username: str, password: str) -> dict:
+    def _authorize(self, username: str, password: str) -> dict:
         '''Get bearer token for a username and password'''
 
         key = 'AIzaSyA5xZ7WCkI6X1Q2yzWHUrc70OXH5iCp7-c'
         base_url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='
         auth_url = f'{base_url}{key}'
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         auth_body = {
             "email": username,
@@ -678,6 +704,7 @@ class HFAPI:
             "returnSecureToken": True
         }
 
+        # print("Authorize")
         auth_response = requests.request(
             "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
         if auth_response.status_code != 200:
@@ -685,14 +712,14 @@ class HFAPI:
                 f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
         return auth_response.json()
 
-    def refresh_bearer_token(self):
+    def _refresh_bearer_token(self):
         """refreshes bearer token"""
 
         key = 'AIzaSyA5xZ7WCkI6X1Q2yzWHUrc70OXH5iCp7-c'
         base_url = 'https://securetoken.googleapis.com/v1/token?key='
         auth_url = f'{base_url}{key}'
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         auth_body = {
             "refresh_token": self.bearer_token["refresh_token"],
@@ -713,9 +740,9 @@ class HFAPI:
     #             if arg == '':
     #                 raise HFAPIAuthException(
     #                     'If bearer token not provided, must provide username and password')
-    #         return self.authorize(username, password)
+    #         return self._authorize(username, password)
     #     else:
-    #         return self.get_headers()
+    #         return self._get_headers()
 
     # *****************************************************************************************************************
     # Conversation sets and Querying Processed Conversation set data
@@ -726,7 +753,7 @@ class HFAPI:
 
         payload = {}
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets?namespace={namespace}"
         response = requests.request(
@@ -772,7 +799,7 @@ class HFAPI:
     def get_conversation_set(self, namespace: str, conversation_set_id: str) -> dict:
         """Get conversation set"""
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         payload = {
             "namespace":namespace,
@@ -794,7 +821,7 @@ class HFAPI:
             }
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}"
         response = requests.request(
@@ -826,7 +853,7 @@ class HFAPI:
             "id": convoset_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convoset_id}/config"
         response = requests.request(
@@ -850,7 +877,7 @@ class HFAPI:
             }
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convoset_id}/config"
         response = requests.request(
@@ -898,7 +925,7 @@ class HFAPI:
         if next_page_token and next_page_token != "":
             payload["page_token"] = next_page_token
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/conversations/{namespace}/{workspace}/query'
         response = requests.request(
@@ -916,7 +943,7 @@ class HFAPI:
             "namespace": namespace
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/integrations/{namespace}'
 
@@ -934,7 +961,7 @@ class HFAPI:
             "integration_id":integration_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/integration_workspaces/{namespace}/{integration_id}/workspaces'
 
@@ -1006,7 +1033,7 @@ class HFAPI:
             "integration_language": integration_language
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/integration_workspaces/{namespace}/{integration_id}/workspaces/{integration_workspace_id}/import' # pylint: disable=line-too-long
 
@@ -1026,7 +1053,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/presets'
 
@@ -1052,7 +1079,7 @@ class HFAPI:
             "name": name
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/evaluations'
 
@@ -1064,10 +1091,11 @@ class HFAPI:
         '''Get the evaluation report as zip'''
         payload = {
             "namespace": namespace,
-            "playbook_id": playbook
+            "playbook_id": playbook,
+            "evaluation_id": evaluation_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/report.zip'
@@ -1081,10 +1109,11 @@ class HFAPI:
         '''Get the evaluation summary as json'''
         payload = {
             "namespace": namespace,
-            "playbook_id": playbook
+            "playbook_id": playbook,
+            "evaluation_id": evaluation_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}'
@@ -1101,7 +1130,7 @@ class HFAPI:
             "playbook_id": playbook
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations'
@@ -1115,10 +1144,12 @@ class HFAPI:
         '''Get a list of training phrases that were evaluated'''
         payload = {
             "namespace": namespace,
-            "playbook_id": playbook
+            "playbook_id": playbook,
+            "evaluation_id": evaluation_id,
+            "intent_id": intent_id
         }
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/{intent_id}'
@@ -1137,7 +1168,7 @@ class HFAPI:
         '''Get the plan for a subscription'''
         payload = {}
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = 'https://api.humanfirst.ai/v1alpha1/subscriptions/plan'
 
@@ -1149,7 +1180,7 @@ class HFAPI:
         '''Get the usage for a subscription'''
         payload = {}
 
-        headers = self.get_headers()
+        headers = self._get_headers()
 
         url = 'https://api.humanfirst.ai/v1alpha1/subscriptions/usage'
 

@@ -49,6 +49,35 @@ class HFOutputFileMustBeDifferent(Exception):
         self.message = message
         super().__init__(self.message)
 
+class HFInvlaidIntentTypeException(Exception):
+    """This happens when intent is not of type HFIntentRef, HFIntent or str (intent_id) objects"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+class HFInvalidWorkspaceInputTypeException(Exception):
+    """This happens when HFWorkspace object is not from a dict of a json (from api) or from a json file"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+class HFExxampleIDNotPresentException(Exception):
+    """This happens when HF example does not have any ID to be included in the workspace"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+class HFContextTypeException(Exception):
+    """This happens when HF example does not have any ID to be included in the workspace"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+class HFContextRoleException(Exception):
+    """This happens when HF example does not have any ID to be included in the workspace"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 @dataclass_json
 @dataclass
@@ -71,7 +100,10 @@ class HFTag:
     name: str
     color: Optional[str] = None
 
-    def __init__(self, id: str, name: str, color: Optional[str] = None):
+    def __init__(self,
+                 id: str, # pylint: disable=redefined-builtin
+                 name: str,
+                 color: Optional[str] = None):
         self.id = id # pylint: disable=redefined-builtin
         self.name = name
         if color and color != '':
@@ -97,13 +129,25 @@ class HFTagFilter:
     include: list
     exclude: list
 
-    def __init__(self, include: list = [], exclude: list = []):
+    def __init__(self, include: list = None, exclude: list = None):
+
+        if include is None:
+            include = []
+
+        if exclude is None:
+            exclude = []
+
         self.include = include
         self.exclude = exclude
 
 @dataclass_json
 @dataclass
 class HFTagFilters:
+    """
+    HumaFirst Tag filters
+    
+    Sets and validates intent and utterance level tags
+    """
     intent: HFTagFilter
     utterance: HFTagFilter
 
@@ -116,6 +160,7 @@ class HFTagFilters:
         self.utterance = HFTagFilter()
 
     def set_tag_filter(self, level: str, tag_type: str, tags: Union[list,str]):
+        """Sets tag filters"""
         accepted_levels = ["intent","utterance"]
         if not level in accepted_levels :
             raise InvalidFilterLevel(f"Accepted levels are {accepted_levels} level was: {level}")
@@ -128,6 +173,7 @@ class HFTagFilters:
         setattr(self,"level",tag_filter)
 
     def validate_tag_list_format(self,tags: Union[list,str]) -> list:
+        """Validates the tag list"""
         if tags == []:
             return []
         if tags == "":
@@ -135,15 +181,18 @@ class HFTagFilters:
         if isinstance(tags, str):
             try:
                 tags = tags.split(",")
-                assert (isinstance(tags, list))
-                assert (len(tags) > 0)
-            except Exception as e:
-                raise InvalidTagFilterListFormat(
-                    f"Couldn't parse -g --tags filters - please make sure a quoted string with a comma separated list of tag names : {e}")
+                assert isinstance(tags, list)
+                assert len(tags) > 0
+            except InvalidTagFilterListFormat as e:
+                error_msg_1 = "Couldn't parse -g --tags filters"
+                error_msg_2 = "please make sure a quoted string with a comma separated list of tag names :"
+                print(f"{error_msg_1} {error_msg_2} {e}")
+                quit()
             return tags
         if isinstance(tags,list):
             return tags
-            # could have a tag validate function here, but that would need to check if have a labelled workspace to check against
+            # could have a tag validate function here,
+            # but that would need to check if have a labelled workspace to check against
         raise InvalidTagFilterListFormat(
             f"Did not recognise type of tags argument passed {tags} {type(tags)}"
         )
@@ -169,7 +218,20 @@ class HFIntent:
     tags: List[HFTag] = field(default_factory=list)
     parent_intent_id: Optional[str] = None
 
-    def __init__(self, id: str, name: str, metadata: HFMetadata = {}, tags: List[HFTag] = [], parent_intent_id: Optional[str] = None):
+    def __init__(self,
+                 id: str, # pylint: disable=redefined-builtin
+                 name: str,
+                 metadata: HFMetadata = None,
+                 tags: List[HFTag] = None,
+                 parent_intent_id: Optional[str] = None):
+
+
+        if metadata is None:
+            metadata = {}
+
+        if tags is None:
+            tags = []
+
         self.id = id
         self.name = name
         self.parent_intent_id = parent_intent_id
@@ -195,22 +257,25 @@ class HFContext:
                                 'expert' - the responding party in the tool typically the bot, agent etc.
     '''
     context_id: Optional[str] = None
-    type: Optional[str] = None
+    context_type: Optional[str] = None
     role: Optional[str] = None
 
-    def __init__(self, context_id: Optional[str] = None, type: Optional[str] = None, role: Optional[str] = None):
+    def __init__(self,
+                 context_id: Optional[str] = None,
+                 context_type: Optional[str] = None,
+                 role: Optional[str] = None):
         self.context_id = context_id
-        if type and type != '':
-            if type in ['conversation']:
-                self.type = type
+        if context_type and context_type != '':
+            if context_type in ['conversation']:
+                self.context_type = context_type
             else:
-                raise Exception(
+                raise HFContextTypeException(
                     'Only "conversation" document type is currently supported')
         if role and role != '':
             if role in ['expert', 'client']:
                 self.role = role
             else:
-                raise Exception(
+                raise HFContextRoleException(
                     'Only "conversation" document with roles of "client" or "expert" are currently supported')
 
 
@@ -272,13 +337,26 @@ class HFExample:
     def __init__(
             self,
             text: str,
-            id: str,
+            id: str, # pylint: disable=redefined-builtin
             created_at: Optional[datetime.datetime] = None,
-            intents: Union[List[HFIntentRef],List[HFIntent],List[str]] = [],
-            tags: List[HFTag] = [],
-            metadata: HFMetadata = {},
-            context: Optional[HFContext] = {}
+            intents: Union[List[HFIntentRef],List[HFIntent],List[str]] = None,
+            tags: List[HFTag] = None,
+            metadata: HFMetadata = None,
+            context: Optional[HFContext] = None
         ):
+
+        if intents is None:
+            intents = []
+
+        if tags is None:
+            tags = []
+
+        if metadata is None:
+            metadata = {}
+
+        if context is None:
+            context = {}
+
         self.id = id
         self.text = text
         self.intents = intents
@@ -308,7 +386,8 @@ class HFExample:
                 self.intents = [HFIntentRef(intent)
                                 for intent in intents]
             else:
-                raise Exception("Intents can be provided as a list of HFIntentRef, HFIntent or str (intent_id) objects only")
+                raise HFInvlaidIntentTypeException(
+                    "Intents can be provided as a list of HFIntentRef, HFIntent or str (intent_id) objects only")
 
 
 class HFWorkspace:
@@ -327,14 +406,20 @@ class HFWorkspace:
     intents_by_id: Dict[str, HFIntent]
     examples: Dict[str, HFExample]
     tags: Dict[str, HFTag]
+    delimiter: str
 
     def __init__(self):
         self.intents = {}
         self.intents_by_id = {}
         self.tags = {}
         self.examples = {}
+        self.delimiter = None
 
-    def intent(self, name_or_hier: Union[str, List[str]], id: Optional[str] = None, tags: List[HFTag] = [], metadata: HFMetadata = {}) -> HFIntent:
+    def intent(self,
+               name_or_hier: Union[str, List[str]],
+               id: Optional[str] = None, # pylint: disable=redefined-builtin
+               tags: List[HFTag] = None,
+               metadata: HFMetadata = None) -> HFIntent:
         '''Check whether the intent exists within the hierarchy provided, if it does return the intent object found
         If it does not, create it, along with all necessary parents that don't exist and return the new object
 
@@ -349,7 +434,13 @@ class HFWorkspace:
         metadata:     dict | HFMetadata  A dict of string only key value pairs detailing information about the text
                                          useful to an annotator in HF Studio
         '''
-        if type(name_or_hier) is not list:
+        if tags is None:
+            tags = []
+
+        if metadata is None:
+            metadata = {}
+
+        if not isinstance(name_or_hier, list):
             # print("not list")
             name_or_hier = [name_or_hier]
 
@@ -360,11 +451,12 @@ class HFWorkspace:
                 break
             if part not in self.intents:
                 if not id:
-                    genid = 'intent-%d' % len(self.intents)
+                    genid = f'intent-{len(self.intents)}'
                 else:
                     genid = id
 
-                # TODO: this doesn't work if you want the parent intent to have different metadata or tags to the child intent
+                # TODO: this doesn't work if you want the parent intent to have
+                # different metadata or tags to the child intent.
                 # the first child intent creates the full hierarchy
                 intent = HFIntent(
                     id=genid,
@@ -381,11 +473,12 @@ class HFWorkspace:
         return last
 
     def tag_intent(self, intent_id, tag: HFTag):
+        """Sets the intent tags"""
         # get the intent here
         intent = self.intent_by_id(intent_id)
-        assert (isinstance(intent, HFIntent))
-        for i in range(len(intent.tags)):
-            assert (isinstance(intent.tags[i], HFTag))
+        assert isinstance(intent, HFIntent)
+        for i,_ in enumerate(intent.tags):
+            assert isinstance(intent.tags[i], HFTag)
             if intent.tags[i] == tag.name:
                 intent.tags[i] = tag
                 self.intents_by_id[intent_id] = intent
@@ -396,6 +489,8 @@ class HFWorkspace:
         return tag
 
     def get_intent_index(self, delimiter: str) -> dict:
+        """ Compute fully qualified intent name for all the intents"""
+
         # for every intent
         # go back up it's parent hierachy by id
         # reassemble name_or_hier
@@ -465,7 +560,7 @@ class HFWorkspace:
                 for tag_name in tag_filters.utterance.include:
                     column_name = f'example_tags{delimiter}{tag_name}'
                     if column_name in df.columns.to_list():
-                        filtered_df = pandas.concat([filtered_df,df[df[column_name]==True]])
+                        filtered_df = pandas.concat([filtered_df,df[df[column_name] is True]])
             else:
                 filtered_df = df
             filtered_df = filtered_df.drop_duplicates()
@@ -475,7 +570,7 @@ class HFWorkspace:
             for tag_name in tag_filters.utterance.exclude:
                 column_name = f'example_tags{delimiter}{tag_name}'
                 if column_name in filtered_df.columns.to_list():
-                    filtered_df = filtered_df[filtered_df[column_name]!=True]
+                    filtered_df = filtered_df[filtered_df[column_name] is not True]
             filtered_df = filtered_df.drop_duplicates()
             print(f'fi0 {filtered_df.shape}')
 
@@ -486,7 +581,7 @@ class HFWorkspace:
                 for tag_name in tag_filters.intent.include:
                     column_name = f'intent_tags{delimiter}{tag_name}'
                     if column_name in filtered_df.columns.to_list():
-                        final_df = pandas.concat([final_df,filtered_df[filtered_df[column_name]==True]])
+                        final_df = pandas.concat([final_df,filtered_df[filtered_df[column_name] is True]])
             else:
                 final_df = filtered_df
             final_df = final_df.drop_duplicates()
@@ -496,7 +591,7 @@ class HFWorkspace:
             for tag_name in tag_filters.intent.exclude:
                 column_name = f'intent_tags{delimiter}{tag_name}'
                 if column_name in final_df.columns.to_list():
-                    final_df = final_df[final_df[column_name]!=True]
+                    final_df = final_df[final_df[column_name] is not True]
             final_df = final_df.drop_duplicates()
             print(f'fa0 {final_df.shape}')
 
@@ -507,7 +602,7 @@ class HFWorkspace:
         print(df)
 
 
-    def intent_by_id(self, id: str) -> Optional[HFIntent]:
+    def intent_by_id(self, id: str) -> Optional[HFIntent]: # pylint: disable=redefined-builtin
         '''Return a particular intent by id
 
         Parameters
@@ -521,14 +616,30 @@ class HFWorkspace:
         If not create the tag object
         '''
         if tag not in self.tags:
-            self.tags[tag] = HFTag('tag-%d' % len(self.tags), tag, color)
+            self.tags[tag] = HFTag(f'tag-{len(self.tags)}', tag, color)
         return self.tags[tag]
 
-    def example(self, text: str, id: Optional[str] = None, created_at: Optional[datetime.datetime] = None, intents: List[HFIntent] = [], tags: List[HFTag] = [], metadata: HFMetadata = {}, context: Optional[HFContext] = None) -> HFExample:
+    def example(self, text: str,
+                id: Optional[str] = None, # pylint: disable=redefined-builtin
+                created_at: Optional[datetime.datetime] = None,
+                intents: List[HFIntent] = None,
+                tags: List[HFTag] = None,
+                metadata: HFMetadata = None,
+                context: Optional[HFContext] = None) -> HFExample:
         '''Create a new example based on passed properties, assigning an ID if necessary
         '''
+
+        if intents is None:
+            intents = []
+
+        if tags is None:
+            tags = []
+
+        if metadata is None:
+            metadata = {}
+
         if id is None:
-            id = 'ex-%s' % hash_string(text)
+            id = f'ex-{hash_string(text)}'
 
         if id in self.examples:
             return self.examples[id]
@@ -553,30 +664,47 @@ class HFWorkspace:
     def add_example(self, example: HFExample):
         '''Add an example to the workspace based on an example created elsewhere using the HFExample constructor
         '''
-        assert (isinstance(example, HFExample))
+        assert isinstance(example, HFExample)
         if example.id is None:
-            raise Exception(
+            raise HFExxampleIDNotPresentException(
                 'All examples must have an id to be included in a workspace?')
         self.examples[example.id] = example
 
+    def get_fully_qualified_intent_name(self, intent_id: str) -> str:
+        """Gets fully qualified intent name"""
+
+        working = self.intents_by_id[intent_id]
+        fullpath = working.name
+        while working.parent_intent_id:
+            working = self.intents_by_id[working.parent_intent_id]
+            fullpath = f'{working.name}{self.delimiter}{fullpath}'
+
+        return fullpath
+
     @staticmethod
-    def from_json(input: Union[IO, dict]) -> 'HFWorkspace':
-        '''Read and validate a HFWorkspace object from a dict of a json (from api)
-        or from a json file
+    def from_json(workspace_input: Union[IO, dict], delimiter: str) -> 'HFWorkspace':
         '''
-        if isinstance(input, IO):
-            obj = HFWorkspaceJson.from_json(input.read(), infer_missing=True) # pylint: disable=no-member
-        elif isinstance(input, dict):
+        Read and validate a HFWorkspace object from a dict of a json (from api)
+        or from a json file
+
+        It is required to provide a delimiter for intent name.
+        It can be None if there are no child intents, otherwise any other character to separate parent and child intent.
+        Most widely used delimiters are / or -
+        '''
+        if isinstance(workspace_input, IO):
+            obj = HFWorkspaceJson.from_json(workspace_input.read(), infer_missing=True) # pylint: disable=no-member
+        elif isinstance(workspace_input, dict):
             obj = HFWorkspaceJson.from_json( # pylint: disable=no-member
-                json.dumps(input), infer_missing=True)
+                json.dumps(workspace_input), infer_missing=True)
         else:
-            raise Exception(f"What is this thing of type: {type(input)}")
+            raise HFInvalidWorkspaceInputTypeException(f"What is this thing of type: {type(workspace_input)}")
 
         workspace = HFWorkspace()
         workspace.intents = {intent.name: intent for intent in obj.intents}
         workspace.intents_by_id = {intent.id: intent for intent in obj.intents}
         workspace.tags = {tag.id: tag for tag in obj.tags}
         workspace.examples = {example.id: example for example in obj.examples}
+        workspace.delimiter = delimiter
 
         return workspace
 
@@ -627,6 +755,7 @@ def hash_string(s: str, prefix: Optional[str] = None) -> str:
         return f'{hexdigest[0:20]}'
 
 def generate_random_color() -> str:
+    """Generates random colour"""
     return '#' + ''.join([random.choice('0123456789ABCDEF') for j in range(6)])
 
 class InvalidFilterLevel(Exception):
