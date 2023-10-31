@@ -213,6 +213,23 @@ class HFAPI:
     # Playbooks/Workspaces
     # *****************************************************************************************************************
 
+    def create_playbook(self, namespace: str, playbook_name: str) -> dict:
+        '''
+        Creates a playbook in the given namespace
+        
+        If the playbook name already exists, that playbook gets deleted and a new one is creates
+        '''
+        payload = {
+            "namespace": namespace,
+            "playbook_name": playbook_name,
+        }
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "playbooks")
 
     def list_playbooks(self, namespace: str) -> dict:
         '''Returns list of all playbooks for an organisation

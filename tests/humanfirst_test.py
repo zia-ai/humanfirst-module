@@ -26,6 +26,7 @@ constants.read(path_to_config_file)
 
 # constants need type conversion from str to int
 TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
+DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 
 def test_load_testdata():
     """test_load_testdata"""
@@ -63,12 +64,21 @@ def test_intent_hierarchy_numbers():
     assert intent.parent_intent_id == 'intent-1'
     assert len(labelled.intents) == 3
 
-def test_get_fully_qualified_intent_name(playbook_id,delimiter):
-    """test_get_fully_qualified_intent_name()"""
+def test_get_fully_qualified_intent_name():
+    """
+    test_get_fully_qualified_intent_name
+    
+    Before running this test, set HF_USERNAME and HF_PASSWORD as environment variables to access TEST_NAMESPACE
+    """
 
     hf_api = humanfirst.apis.HFAPI()
 
-    # check if the provided playbook is available in the workspace
+    create_pb_res = hf_api.create_playbook(namespace=TEST_NAMESPACE,
+                                           playbook_name="fully_qualified_intent_name function test")
+
+    playbook_id = create_pb_res["etcdId"]
+
+    # check if the playbook is available in the workspace
     list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
     valid_playbook_id = False
     for i,_ in enumerate(list_pb):
@@ -76,28 +86,35 @@ def test_get_fully_qualified_intent_name(playbook_id,delimiter):
             valid_playbook_id = True
     assert valid_playbook_id is True
 
+    path_to_file = os.path.join(here,'..','examples','json_model_example_output.json')
+
+    with open(path_to_file, mode="r", encoding="utf8") as file_obj:
+        workspace_dict = json.load(file_obj)
+
+    _ = hf_api.import_intents(namespace=TEST_NAMESPACE, playbook=playbook_id, workspace_as_dict=workspace_dict)
+
     # get the playbook and form a HF workspace object
     full_pb = hf_api.get_playbook(namespace=TEST_NAMESPACE, playbook=playbook_id)
-    hf_workspace = humanfirst.objects.HFWorkspace.from_json(full_pb, delimiter=delimiter)
+    hf_workspace = humanfirst.objects.HFWorkspace.from_json(full_pb, delimiter=DEFAULT_DELIMITER)
 
     actual_intent_names = [
         "GROUP1",
         "GROUP2",
-        f"GROUP1{delimiter}GROUP1_EN_INJURED_AT_THE_ZOO",
-        f"GROUP2{delimiter}GROUP2_DREADFULLY_INJURED"
+        f"GROUP1{DEFAULT_DELIMITER}GROUP1_EN_INJURED_AT_THE_ZOO",
+        f"GROUP2{DEFAULT_DELIMITER}GROUP2_DREADFULLY_INJURED"
     ]
 
     assert len(hf_workspace.intents_by_id) == len(actual_intent_names)
 
-    # check if the funtion properly generates fully qualified intent names for all intents 
+    # check if the funtion properly generates fully qualified intent names for all intents
     for intent_id in hf_workspace.intents_by_id:
         intent_name = hf_workspace.get_fully_qualified_intent_name(intent_id=intent_id)
         assert intent_name in actual_intent_names
 
     # delete the workspace and check if the workspace is deleted
-    hf_api.delete_playbook(namespace=TEST_NAMESPACE, playbook_id=playbook_id, hard_delete=False)
+    hf_api.delete_playbook(namespace=TEST_NAMESPACE, playbook_id=playbook_id, hard_delete=True)
 
-    # check if the provided playbook is removed in the workspace
+    # check if the provided playbook is removed from the workspace
     list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
     valid_playbook_id = False
     for i,_ in enumerate(list_pb):
