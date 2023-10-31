@@ -214,7 +214,7 @@ class HFAPI:
     # *****************************************************************************************************************
 
 
-    def list_playbooks(self, namespace: str = "") -> dict:
+    def list_playbooks(self, namespace: str) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering'''
         payload = {
@@ -223,7 +223,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "playbooks")
@@ -294,6 +294,26 @@ class HFAPI:
         response = response.decode('utf-8')
         response_dict = json.loads(response)
         return response_dict
+
+    def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False) -> dict:
+        '''
+        Delete the playbook provided
+        
+        hard_delete - Don't just flag the playbook as deleted, but completely delete it from the database
+        '''
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "hard_delete": hard_delete
+        }
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}'
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "playbooks")
 
     # *****************************************************************************************************************
     # Intents
