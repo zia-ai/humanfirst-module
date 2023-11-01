@@ -17,11 +17,24 @@ import hashlib
 import json
 import random
 from typing import IO, Any, Dict, List, Optional, Union
+import logging
+import logging.config
+import os
 
 # third party imports
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 import pandas
+
+# locate where we are
+here = os.path.abspath(os.path.dirname(__file__))
+path_to_log_config_file = os.path.join(here,'..','logging.conf')
+
+# Load logging configuration
+logging.config.fileConfig(path_to_log_config_file)
+
+# create logger
+logger = logging.getLogger('humanfirst.objects')
 
 HFMetadata = Dict[str, Any]
 
@@ -186,7 +199,7 @@ class HFTagFilters:
             except InvalidTagFilterListFormat as e:
                 error_msg_1 = "Couldn't parse -g --tags filters"
                 error_msg_2 = "please make sure a quoted string with a comma separated list of tag names :"
-                print(f"{error_msg_1} {error_msg_2} {e}")
+                logger.error("%s %s %s", error_msg_1, error_msg_2, e)
                 quit()
             return tags
         if isinstance(tags,list):
@@ -441,7 +454,6 @@ class HFWorkspace:
             metadata = {}
 
         if not isinstance(name_or_hier, list):
-            # print("not list")
             name_or_hier = [name_or_hier]
 
         parent_intent_id = None
@@ -482,7 +494,7 @@ class HFWorkspace:
             if intent.tags[i] == tag.name:
                 intent.tags[i] = tag
                 self.intents_by_id[intent_id] = intent
-                print("tag_exists")
+                logger.info("tag_exists")
                 return tag
         intent.tags.append(tag)
         self.intents_by_id[intent_id] = intent
@@ -550,7 +562,7 @@ class HFWorkspace:
 
 
         df = pandas.json_normalize(obj_list, sep=delimiter)
-        print(f'df0 {df.shape}')
+        logger.info("df0 %s",df.shape)
 
         if tag_filters:
             filtered_df = pandas.DataFrame()
@@ -564,7 +576,7 @@ class HFWorkspace:
             else:
                 filtered_df = df
             filtered_df = filtered_df.drop_duplicates()
-            print(f'fi0 {filtered_df.shape}')
+            logger.info('fi0 %s',filtered_df.shape)
 
             # exclude utterances
             for tag_name in tag_filters.utterance.exclude:
@@ -572,7 +584,7 @@ class HFWorkspace:
                 if column_name in filtered_df.columns.to_list():
                     filtered_df = filtered_df[filtered_df[column_name] is not True]
             filtered_df = filtered_df.drop_duplicates()
-            print(f'fi0 {filtered_df.shape}')
+            logger.info('fi0 %s',filtered_df.shape)
 
             final_df = pandas.DataFrame()
 
@@ -585,7 +597,7 @@ class HFWorkspace:
             else:
                 final_df = filtered_df
             final_df = final_df.drop_duplicates()
-            print(f'fa0 {final_df.shape}')
+            logger.info('fa0 %s',final_df.shape)
 
             # exclude intents
             for tag_name in tag_filters.intent.exclude:
@@ -593,13 +605,13 @@ class HFWorkspace:
                 if column_name in final_df.columns.to_list():
                     final_df = final_df[final_df[column_name] is not True]
             final_df = final_df.drop_duplicates()
-            print(f'fa0 {final_df.shape}')
+            logger.info('fa0 %s',final_df.shape)
 
             df = final_df
 
         df = df.sort_values(["fully_qualified_intent_name"],ignore_index=True)
         df.to_csv(output_path, sep=",", encoding="utf8", index=False)
-        print(df)
+        logger.info("\n%s",df)
 
 
     def intent_by_id(self, id: str) -> Optional[HFIntent]: # pylint: disable=redefined-builtin

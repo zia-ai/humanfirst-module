@@ -706,7 +706,6 @@ class HFAPI:
 
         # adding 60 sec to the time difference to check if ample amount of time is left for using the token
         if time_diff >= self.bearer_token["expires_in"] and self.bearer_token["status"] == VALID:
-            # print("Refresh")
             self.bearer_token["status"] = REFRESHING
             refresh_response = self._refresh_bearer_token()
             self.bearer_token = {
@@ -741,7 +740,6 @@ class HFAPI:
             "returnSecureToken": True
         }
 
-        # print("Authorize")
         auth_response = requests.request(
             "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
         if auth_response.status_code != 200:
@@ -795,9 +793,7 @@ class HFAPI:
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets?namespace={namespace}"
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-        if response.status_code != 200:
-            print(f"Got {response.status_code} Response\n URL - {url}")
-            quit()
+        response = self._validate_response(response=response,url=url)
         conversation_sets = response.json()['conversationSets']
         conversation_set_list = []
         for conversation_set in conversation_sets:
@@ -806,9 +802,7 @@ class HFAPI:
             url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{conversation_set_id}"
             response = requests.request(
                 "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-            if response.status_code != 200:
-                print(f"Got {response.status_code} Responsen\n URL - {url}")
-                quit()
+            response = self._validate_response(response=response,url=url)
             conversation_set = response.json()
 
             if "state" in conversation_set.keys():
