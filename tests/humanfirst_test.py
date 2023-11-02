@@ -67,7 +67,7 @@ def test_intent_hierarchy_numbers():
 def test_get_fully_qualified_intent_name():
     """
     test_get_fully_qualified_intent_name
-    
+
     Before running this test, set HF_USERNAME and HF_PASSWORD as environment variables to access TEST_NAMESPACE
     """
 
