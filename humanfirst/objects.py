@@ -28,7 +28,7 @@ import pandas
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
-path_to_log_config_file = os.path.join(here,'..','logging.conf')
+path_to_log_config_file = os.path.join(here,'config','logging.conf')
 
 # Load logging configuration
 logging.config.fileConfig(path_to_log_config_file)

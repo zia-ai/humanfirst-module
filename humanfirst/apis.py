@@ -24,7 +24,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # CONSTANTS
 constants = ConfigParser()
-path_to_config_file = os.path.join(here,'..','setup.cfg')
+path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
 
 # constants need type conversion from str to int

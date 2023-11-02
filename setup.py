@@ -19,7 +19,7 @@ DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
         "Development Status :: 3 - Alpha",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ]
 
@@ -33,6 +33,9 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     packages=find_packages(),
+    package_data={
+        'humanfirst': ['config/*.conf', 'config/*.cfg'],
+    },
     install_requires=[
         'numpy',
         'pandas',
