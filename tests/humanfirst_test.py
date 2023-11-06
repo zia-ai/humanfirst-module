@@ -69,6 +69,8 @@ def test_get_fully_qualified_intent_name():
     test_get_fully_qualified_intent_name
 
     Before running this test, set HF_USERNAME and HF_PASSWORD as environment variables to access TEST_NAMESPACE
+    
+    And also update TEST_NAMESPACE before running this test
     """
 
     hf_api = humanfirst.apis.HFAPI()
