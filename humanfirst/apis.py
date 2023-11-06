@@ -546,6 +546,187 @@ class HFAPI:
             "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
         return self._validate_response(response, url)
 
+    # *****************************************************************************************************************
+    # Entities
+    # *****************************************************************************************************************
+
+    def list_entities(self, namespace: str, playbook_id: str) -> dict: # not working
+        '''List all the entities in a workspace'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id
+        }
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
+
+    # def get_entity(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Get a specific entity from a workspace'''
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id,
+    #         "entity_key": "business address"
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}'
+    #     response = requests.request(
+    #         "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def create_entity(self, namespace: str, playbook_id: str) -> dict: # not working
+    #     '''Create an entity'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity": "<entity_object>"
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities'
+    #     response = requests.request(
+    #         "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def update_entity(self, namespace: str, playbook_id: str) -> dict: # not working
+    #     '''update an entity in a workspace'''
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity.id}'
+    #     response = requests.request(
+    #         "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def delete_entity(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Delete an entity in a workspace'''
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}'
+    #     response = requests.request(
+    #         "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def list_system_entities(self, namespace: str, playbook_id: str) -> dict: # not working
+    #     '''List system entities in a workspace'''
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities:system'
+    #     response = requests.request(
+    #         "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def get_entity_settings(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Get entity settings in a workspace'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}/settings'
+    #     response = requests.request(
+    #         "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def set_entity_settings(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Set entity settings in a workspace'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id,
+    #         "allowed_intent_ids": [],
+    #         "denied_intent_ids": []
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}/settings'
+    #     response = requests.request(
+    #         "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def create_entity_value(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Create entity values'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id,
+    #         "entity_value": "<entity value obj>"
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}/values'
+    #     response = requests.request(
+    #         "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def update_entity_value(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+    #     '''Update entity values'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id,
+    #         "entity_value": "<entity value obj>"
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces/'
+    #     args_url = f'{namespace}/{playbook_id}/entities/{entity_id}/values/{entity_value.id}'
+    #     url = f'{base_url}{args_url}'
+    #     response = requests.request(
+    #         "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
+
+    # def delete_entity_value(self, namespace: str, playbook_id: str, entity_id: str, entity_value_id: str) -> dict: # NW
+    #     '''Delete entity values'''
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "playbook_id": playbook_id,
+    #         "entity_id": entity_id,
+    #         "entity_value_id": entity_value_id
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces/'
+    #     args_url = f'{namespace}/{playbook_id}/entities/{entity_id}/values/{entity_value_id}'
+    #     url = f'{base_url}{args_url}'
+    #     response = requests.request(
+    #         "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response, url)
 
     # *****************************************************************************************************************
     # Call NLU engines
