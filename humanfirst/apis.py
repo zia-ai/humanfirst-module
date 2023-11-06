@@ -550,7 +550,7 @@ class HFAPI:
     # Entities
     # *****************************************************************************************************************
 
-    def list_entities(self, namespace: str, playbook_id: str) -> dict: # not working
+    def list_entities(self, namespace: str, playbook_id: str) -> dict: # not working - getting 404
         '''List all the entities in a workspace'''
         payload = {
             "namespace": namespace,
@@ -564,21 +564,21 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
 
-    # def get_entity(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
-    #     '''Get a specific entity from a workspace'''
-    #     payload = {
-    #         "namespace": namespace,
-    #         "playbook_id": playbook_id,
-    #         "entity_id": entity_id,
-    #         "entity_key": "business address"
-    #     }
+    def get_entity(self, namespace: str, playbook_id: str, entity_id: str) -> dict: # not working
+        '''Get a specific entity from a workspace'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "entity_id": entity_id,
+            "entity_key": "business address"
+        }
 
-    #     headers = self._get_headers()
+        headers = self._get_headers()
 
-    #     url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}'
-    #     response = requests.request(
-    #         "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-    #     return self._validate_response(response, url)
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}/entities/{entity_id}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
 
     # def create_entity(self, namespace: str, playbook_id: str) -> dict: # not working
     #     '''Create an entity'''
@@ -709,7 +709,7 @@ class HFAPI:
     #         "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
     #     return self._validate_response(response, url)
 
-    # def delete_entity_value(self, namespace: str, playbook_id: str, entity_id: str, entity_value_id: str) -> dict: # NW
+    # def delete_entity_value(self, namespace: str, playbook_id: str, entity_id: str, entity_value_id: str) -> dict:#NW
     #     '''Delete entity values'''
 
     #     payload = {
