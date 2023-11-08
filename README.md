@@ -63,3 +63,7 @@ Password: `API token`
 ## To install humanfirst package locally into humanfirst-module
 
 `python3 -m pip install -e .`
+
+## To install humanfirst package locally into humanfirst-module using the dist
+
+`pip install dist/humanfirst-<version number>.tar.gz --no-cache`

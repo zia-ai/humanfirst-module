@@ -14,12 +14,12 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '0.0.3'
+VERSION = '1.0.0'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
         "Development Status :: 3 - Alpha",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ]
 
@@ -33,13 +33,17 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     packages=find_packages(),
+    package_data={
+        'humanfirst': ['config/*.conf', 'config/*.cfg'],
+    },
     install_requires=[
         'numpy',
         'pandas',
         'requests',
         'requests-toolbelt',
         'dataclasses',
-        'dataclasses-json'
+        'dataclasses-json',
+        'python-dotenv'
     ],
     keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
@@ -61,7 +65,8 @@ setup(
             "autopep8",
             "dataclasses",
             "dataclasses-json",
-            "pytest"
+            "pytest",
+            "python-dotenv"
         ]
     }
 )
