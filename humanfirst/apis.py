@@ -13,11 +13,13 @@ import base64
 import datetime
 import os
 from configparser import ConfigParser
+import logging
+import logging.config
 
 # third party imports
 import requests
 import requests_toolbelt
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -34,6 +36,14 @@ VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
 
+# locate where we are
+path_to_log_config_file = os.path.join(here,'config','logging.conf')
+
+# Load logging configuration
+logging.config.fileConfig(path_to_log_config_file)
+
+# create logger
+logger = logging.getLogger('humanfirst.apis')
 
 # ******************************************************************************************************************120
 #
@@ -95,8 +105,10 @@ class HFAPI:
         4. username and password can be used while instantiating the object.
         """
 
+        dotenv_path = find_dotenv(usecwd=True)
+
         # load the environment variables from the .env file if present
-        load_dotenv()
+        load_dotenv(dotenv_path=dotenv_path)
 
         if username == "":
             # this automatically checks if the environment variable is available in CLI first
@@ -182,29 +194,28 @@ class HFAPI:
             "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
 
-    def create_tag(self, namespace: str, playbook: str, tag_id: str,
-                name: str, description: str, color: str) -> dict:
-        '''Create a tag - untested - not sure possible'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "tag_id": tag_id
-        }
+    def create_tag(self, namespace: str, playbook: str,
+                tag_id: str, tag_name: str, tag_color: str) -> dict:
+        '''Create a tag'''
 
         now = datetime.datetime.now()
         now = now.isoformat()
-        payload = {
+
+        tag = {
             "id": tag_id,
-            "name": name,
-            "description": description,
-            "color": color,  # '#' + ''.join([random.choice('0123456789ABCDEF')
-            "created_at": now,
-            "updated_at": now
+            "name": tag_name,
+            "color": tag_color
+        }
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook,
+            "tag":tag
         }
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags/{tag_id}'
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags'
         response = requests.request(
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
@@ -380,21 +391,25 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "revisions")
 
-    def update_intent(self, namespace: str, playbook: str, intent: dict) -> dict:
-        '''Update an intent'''
+    def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str) -> dict:
+        '''Update an intent
+        
+        *update_mask = <keywords used in an intent hf format>
+        this helps in updating specific keyword
+        '''
         payload = {
             "namespace": namespace,
             "playbook_id": playbook,
             "intent": intent,
-            "update_mask": "name,id,tags" # doesn't seem to work - confirmed bug to be fixed in next release ~ 2023-09
+            "update_mask": update_mask
         }
 
         headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents'
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-        return response
+            "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
 
     def import_intents(
             self,
@@ -702,10 +717,15 @@ class HFAPI:
 
         assert isinstance(time_diff, datetime.timedelta)
 
+        logger.info("Current time: %s",now)
+        logger.info('Token Creation time: %s',self.bearer_token["datetime"])
+        logger.info("Time Difference: %s",time_diff)
+        logger.info('Token status: %s',self.bearer_token["status"])
         time_diff = time_diff.seconds + EXPIRY_ADDITION
 
         # adding 60 sec to the time difference to check if ample amount of time is left for using the token
         if time_diff >= self.bearer_token["expires_in"] and self.bearer_token["status"] == VALID:
+            logger.info("Refreshing Token")
             self.bearer_token["status"] = REFRESHING
             refresh_response = self._refresh_bearer_token()
             self.bearer_token = {
@@ -716,12 +736,19 @@ class HFAPI:
                 "status": VALID
             }
 
-        bearer_string = f'Bearer {self.bearer_token["bearer_token"]}'
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': 'application/json',
-            'Authorization': bearer_string
-        }
+        if self.bearer_token["status"] == REFRESHING or self.bearer_token["status"] == EXPIRED:
+            headers = {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': 'application/json'
+            }
+        if self.bearer_token["status"] == VALID:
+            bearer_string = f'Bearer {self.bearer_token["bearer_token"]}'
+            headers = {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': 'application/json',
+                'Authorization': bearer_string
+            }
+
         return headers
 
 
@@ -938,6 +965,7 @@ class HFAPI:
                     }
                 }
             )
+        predicates.append({"conversation_type": {"type": 0}})
         if convsetsource and convsetsource != "":
             predicates.append(
                 {"conversationSet": {"conversationSetIds": [convsetsource]}})

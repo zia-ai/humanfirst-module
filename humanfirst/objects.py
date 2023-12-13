@@ -20,6 +20,7 @@ from typing import IO, Any, Dict, List, Optional, Union
 import logging
 import logging.config
 import os
+import uuid
 
 # third party imports
 from dataclasses import dataclass, field
@@ -628,7 +629,7 @@ class HFWorkspace:
         If not create the tag object
         '''
         if tag not in self.tags:
-            self.tags[tag] = HFTag(f'tag-{len(self.tags)}', tag, color)
+            self.tags[tag] = HFTag(f'tag-{uuid.uuid4()}', tag, color)
         return self.tags[tag]
 
     def example(self, text: str,
