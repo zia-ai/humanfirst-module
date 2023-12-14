@@ -271,17 +271,17 @@ class HFContext:
                                 'expert' - the responding party in the tool typically the bot, agent etc.
     '''
     context_id: Optional[str] = None
-    context_type: Optional[str] = None
+    type: Optional[str] = None
     role: Optional[str] = None
 
     def __init__(self,
                  context_id: Optional[str] = None,
-                 context_type: Optional[str] = None,
+                 type: Optional[str] = None, #pylint: disable=W0622:redefined-builtin
                  role: Optional[str] = None):
         self.context_id = context_id
-        if context_type and context_type != '':
-            if context_type in ['conversation']:
-                self.context_type = context_type
+        if type and type != '':
+            if type in ['conversation']:
+                self.type = type
             else:
                 raise HFContextTypeException(
                     'Only "conversation" document type is currently supported')
