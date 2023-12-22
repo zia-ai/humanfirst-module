@@ -151,15 +151,19 @@ class HFAPI:
             raise HFAPIResponseValidationException(
                 url=url, payload=payload, response=response)
 
-        # Check for the passed field or return the full object
-        candidate = response.json()
-        if candidate:
-            if field and field in candidate.keys():
-                return candidate[field]
-            else:
-                return candidate
+        if 'Content-Type' in response.headers and 'application/zip' in response.headers['Content-Type']:
+            # the response is a zip file
+            return response
         else:
-            return {}
+            # Check for the passed field or return the full object
+            candidate = response.json()
+            if candidate:
+                if field and field in candidate.keys():
+                    return candidate[field]
+                else:
+                    return candidate
+            else:
+                return {}
 
     # *****************************************************************************************************************
     # Tags
