@@ -259,7 +259,7 @@ class HFContext:
     '''Schema object for HFContext
 
     Validates the format of a the Context object interelating multiple HFExamples (utterances)
-    within a document or conversation.  Th
+    within a document or conversation.
 
     Parameters
     ----------
@@ -466,12 +466,13 @@ class HFWorkspace:
 
             if i == 0:
                 previous_parts = ""
+                full_intent_path = part
             elif i == 1:
                 previous_parts = name_or_hier[0]
+                full_intent_path = "-".join([previous_parts,part])
             else:
-                previous_parts = "-".join(name_or_hier[0:i-1])
-
-            full_intent_path = f"{previous_parts} {part}"
+                previous_parts = "-".join(name_or_hier[0:i])
+                full_intent_path = "-".join([previous_parts,part])
 
             if  full_intent_path not in self.intents:
                 if not id:
