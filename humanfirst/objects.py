@@ -259,7 +259,7 @@ class HFContext:
     '''Schema object for HFContext
 
     Validates the format of a the Context object interelating multiple HFExamples (utterances)
-    within a document or conversation.  Th
+    within a document or conversation.
 
     Parameters
     ----------
@@ -459,10 +459,22 @@ class HFWorkspace:
 
         parent_intent_id = None
         last = None
-        for part in name_or_hier:
+        for i,part in enumerate(name_or_hier):
+
             if part == '':
                 break
-            if part not in self.intents:
+
+            if i == 0:
+                previous_parts = ""
+                full_intent_path = part
+            elif i == 1:
+                previous_parts = name_or_hier[0]
+                full_intent_path = "-".join([previous_parts,part])
+            else:
+                previous_parts = "-".join(name_or_hier[0:i])
+                full_intent_path = "-".join([previous_parts,part])
+
+            if  full_intent_path not in self.intents:
                 if not id:
                     genid = f'intent-{len(self.intents)}'
                 else:
@@ -478,9 +490,9 @@ class HFWorkspace:
                     metadata=metadata,
                     tags=tags,
                 )
-                self.intents[part] = intent
+                self.intents[full_intent_path] = intent
                 self.intents_by_id[genid] = intent
-            last = self.intents[part]
+            last = self.intents[full_intent_path]
             parent_intent_id = last.id
 
         return last
@@ -736,8 +748,14 @@ class HFWorkspace:
             workspace['tags'] = [tag.to_dict() for tag in self.tags.values()]
 
         if len(self.intents) > 0:
-            workspace['intents'] = [intent.to_dict()
-                                    for intent in self.intents.values()]
+            list_intents = []
+            for intent in self.intents.values():
+                intent = intent.to_dict()
+                # schema does not accept null parent id
+                if intent["parent_intent_id"] is None:
+                    del intent["parent_intent_id"]
+                list_intents.append(intent)
+            workspace['intents'] = list_intents
 
         if jsonl:
             indent = None

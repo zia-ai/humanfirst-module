@@ -1,0 +1,10 @@
+utterance,intent
+example1,intent1-sub_intent1-int
+example2,intent1-sub_intent1-float
+example3,intent1-sub_intent1-double
+example4,intent2-sub_intent1-int
+example5,intent2-sub_intent1-float
+example6,intent2-sub_intent1-double
+example7,sub_intent1-int
+example8,sub_intent1-float
+example9,sub_intent1-double

@@ -9,6 +9,8 @@ Set of pytest humanfirst.objects.py tests
 import os
 import json
 from configparser import ConfigParser
+from datetime import datetime
+import uuid
 
 # third party imports
 import numpy
@@ -27,6 +29,56 @@ constants.read(path_to_config_file)
 # constants need type conversion from str to int
 TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
+
+def test_intent_hierarchy():
+    """test_intent_hierarchy"""
+
+    # read csv
+    path_to_file = os.path.join(here,'..','examples','intent_hierarchy_example.csv')
+    df = pandas.read_csv(path_to_file, sep=",")
+
+    # create a labelled workspace from dataframe
+    labelled = humanfirst.objects.HFWorkspace()
+    labelled.delimiter = "-"
+
+    for _,row in df.iterrows():
+        name_or_hier = str(row["intent"]).split(labelled.delimiter)
+        intent = labelled.intent(name_or_hier=name_or_hier)
+        example = humanfirst.objects.HFExample(
+            text=row["utterance"],
+            id=f'example-{uuid.uuid4()}',
+            created_at=datetime.now().isoformat(),
+            intents=[intent],
+            tags=[],
+            metadata={}
+        )
+        labelled.add_example(example)
+
+    actual_intent_names =  [
+        "intent1-sub_intent1-int",
+        "intent1-sub_intent1-float",
+        "intent1-sub_intent1-double",
+        "intent2-sub_intent1-int",
+        "intent2-sub_intent1-float",
+        "intent2-sub_intent1-double",
+        "sub_intent1-int",
+        "sub_intent1-float",
+        "sub_intent1-double"
+    ]
+
+    # get intent names from the workspace created
+    workspace_intent_names = []
+    for _,example in labelled.examples.items():
+        intent_id = example.intents[0].intent_id
+        intent_name = labelled.get_fully_qualified_intent_name(intent_id=intent_id)
+        workspace_intent_names.append(intent_name)
+    actual_intent_names = sorted(actual_intent_names)
+    workspace_intent_names = sorted(workspace_intent_names)
+
+    # if the if the intent hierarchy isn't matched then we wouldn't get the same fully qualified intent names
+    assert len(actual_intent_names) == len(workspace_intent_names)
+    assert actual_intent_names == workspace_intent_names
+
 
 def test_load_testdata():
     """test_load_testdata"""
@@ -160,9 +212,9 @@ def test_metadata_intent():
     assert (
         labelled.intents['billing'].metadata['anotherkey'] == 'anothervalue')
     assert (
-        labelled.intents['billing_issues'].metadata['anotherkey'] == 'anothervalue')
+        labelled.intents['billing-billing_issues'].metadata['anotherkey'] == 'anothervalue')
     assert (
-        labelled.intents['payment_late'].metadata['anotherkey'] == 'anothervalue')
+        labelled.intents['billing-billing_issues-payment_late'].metadata['anotherkey'] == 'anothervalue')
 
 
 def test_tag_color_create():
