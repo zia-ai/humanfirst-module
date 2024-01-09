@@ -53,13 +53,16 @@ logger = logging.getLogger('humanfirst.apis')
 class HFAPIResponseValidationException(Exception):
     """When response validation fails"""
 
-    def __init__(self, url: str, response, payload: dict = None):
+    def __init__(self, url: str, response, payload: dict = None, wantzip: bool = False):
         if payload is None:
             payload = {}
         self.url = url
         self.response = response
         self.payload = payload
+        self.wantzip = wantzip
         self.message = f'Did not receive 200 from url: {url} {self.response.status_code} {self.response.text}'
+        if self.wantzip:
+            self.message = self.message = ' zip expected but not received'
         super().__init__(self.message)
 
 class HFAPIParameterException(Exception):
@@ -96,7 +99,7 @@ class HFAPI:
     def __init__(self, username: str = "", password: str = ""):
         """
         Initializes bearertoken
-        
+
         Recommended to store the credentials only as environment variables
         There are 4 ways username and password is passed onto the object
         1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
@@ -140,26 +143,43 @@ class HFAPI:
             "status": VALID
         }
 
-    def _validate_response(self, response: requests.Response, url: str, field: str = None, payload: dict = None):
+    def _validate_response(self,
+                           response: requests.Response,
+                           url: str,
+                           field: str = None,
+                           payload: dict = None,
+                           wantzip: bool = False
+        ):
         """Validate the response from the API and provide consistent aerror handling"""
         if payload is None:
             payload = {}
-        if isinstance(response, str):
-            raise HFAPIResponseValidationException(
-                url=url, payload=payload, response=response)
         if response.status_code != 200:
             raise HFAPIResponseValidationException(
                 url=url, payload=payload, response=response)
 
-        # Check for the passed field or return the full object
-        candidate = response.json()
-        if candidate:
-            if field and field in candidate.keys():
-                return candidate[field]
+        # if we are looking for a wantzip validate and return
+        if wantzip:
+            if 'Content-Type' in response.headers and 'application/zip' in response.headers['Content-Type']:
+                # the response is a zip file
+                return response
             else:
-                return candidate
+                return HFAPIResponseValidationException(url=url, payload=payload, response=response, wantzip=wantzip)
+        # else we assume we are looking for a json object
         else:
-            return {}
+            # so if it's a string raise that as an error
+            if isinstance(response, str):
+                raise HFAPIResponseValidationException(
+                url=url, payload=payload, response=response)
+
+            # Check for the passed field or return the full object
+            candidate = response.json()
+            if candidate:
+                if field and field in candidate.keys():
+                    return candidate[field]
+                else:
+                    return candidate
+            else:
+                return {}
 
     # *****************************************************************************************************************
     # Tags
@@ -227,7 +247,7 @@ class HFAPI:
     def create_playbook(self, namespace: str, playbook_name: str) -> dict:
         '''
         Creates a playbook in the given namespace
-        
+
         If the playbook name already exists, that playbook gets deleted and a new one is creates
         '''
         payload = {
@@ -326,7 +346,7 @@ class HFAPI:
     def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False) -> dict:
         '''
         Delete the playbook provided
-        
+
         hard_delete - Don't just flag the playbook as deleted, but completely delete it from the database
         '''
 
@@ -393,7 +413,7 @@ class HFAPI:
 
     def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str) -> dict:
         '''Update an intent
-        
+
         *update_mask = <keywords used in an intent hf format>
         this helps in updating specific keyword
         '''
@@ -1162,7 +1182,7 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
 
-        return self._validate_response(response=response, url=url)
+        return self._validate_response(response=response, url=url, wantzip=True)
 
     def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
         '''Get the evaluation summary as json'''
