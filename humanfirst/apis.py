@@ -1182,7 +1182,7 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
 
-        return self._validate_response(response=response, url=url)
+        return self._validate_response(response=response, url=url, wantzip=True)
 
     def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
         '''Get the evaluation summary as json'''
