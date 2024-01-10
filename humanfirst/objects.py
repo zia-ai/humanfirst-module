@@ -159,7 +159,7 @@ class HFTagFilter:
 class HFTagFilters:
     """
     HumaFirst Tag filters
-    
+
     Sets and validates intent and utterance level tags
     """
     intent: HFTagFilter
@@ -280,17 +280,17 @@ class HFContext:
                  role: Optional[str] = None):
         self.context_id = context_id
         if type and type != '':
-            if type in ['conversation']:
+            if type in ['conversation','unknown']:
                 self.type = type
+                if role and role != '':
+                    if role in ['expert', 'client']:
+                        self.role = role
+                    else:
+                        raise HFContextRoleException(
+                            'Only "client" or "expert" roles are currently supported with "converation" context type')
             else:
                 raise HFContextTypeException(
-                    'Only "conversation" document type is currently supported')
-        if role and role != '':
-            if role in ['expert', 'client']:
-                self.role = role
-            else:
-                raise HFContextRoleException(
-                    'Only "conversation" document with roles of "client" or "expert" are currently supported')
+                    'Only "conversation" and "unknown" document types are currently supported')
 
 
 @dataclass_json
