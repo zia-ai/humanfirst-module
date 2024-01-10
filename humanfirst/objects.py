@@ -100,9 +100,6 @@ class HFTag:
 
     Validates the format of a tag
 
-    Tags can be added HFIntents (intent level) or HFExamples (utterance level)
-    In general separate tags should be used for each
-
     Parameters
     ----------
     id:    str            unique id for tag
@@ -124,6 +121,29 @@ class HFTag:
             self.color = color
         else:
             self.color = generate_random_color()
+
+@dataclass_json
+@dataclass
+class HFTagReference:
+    '''Schema object for HF Tags to be used in HF intents and HF examples
+
+    Validates the format of a tag used in intents and examples
+
+    These tags are added to HFIntents and HFExamples
+
+    Parameters
+    ----------
+    id:    str            unique id for tag
+    name:  str            name of tag that will be displayed in HF studio
+    '''
+    id: str
+    name: str
+
+    def __init__(self,
+                 id: str, # pylint: disable=redefined-builtin
+                 name: str):
+        self.id = id # pylint: disable=redefined-builtin
+        self.name = name
 
 @dataclass_json
 @dataclass
@@ -223,20 +243,20 @@ class HFIntent:
      id:        str            unique id for intent
      name:      str            name of intent that will be displayed in HF studio
      metadata:  dict           a dictionary or HFMetadata object of string only key value pairs
-     tags:      list           a list of HFTag objects
+     tags:      list           a list of HFTagReference objects
      parent_intent_id: str, optional  a reference to the ID of the immediate parent if using hierarchy intents
      '''
     id: str
     name: str
     metadata: HFMetadata = field(default_factory=dict)
-    tags: List[HFTag] = field(default_factory=list)
+    tags: List[HFTagReference] = field(default_factory=list)
     parent_intent_id: Optional[str] = None
 
     def __init__(self,
                  id: str, # pylint: disable=redefined-builtin
                  name: str,
                  metadata: HFMetadata = None,
-                 tags: List[HFTag] = None,
+                 tags: List[HFTagReference] = None,
                  parent_intent_id: Optional[str] = None):
 
 
@@ -332,7 +352,7 @@ class HFExample:
                                    A list of HFintentRefs for intents, or a list of HFIntents
                                    or a list of strings containing intent ids
                                    May be empty list [] if so the utterance will be treated as unlabelled
-    tags:     list HFTags          A list of ids of intents for which this example text is an example of
+    tags:     list HFTagReference A list of ids of intents for which this example text is an example of
                                    May be empty list [] if so the utterance will be treated as unlabelled
                                    and appear int the data section
                                    If provided these utterance will be treated as labelled and appear in the
@@ -344,7 +364,7 @@ class HFExample:
     text: str
     created_at: str
     intents: List[HFIntentRef] = field(default_factory=list)
-    tags: List[HFTag] = field(default_factory=list)
+    tags: List[HFTagReference] = field(default_factory=list)
     metadata: HFMetadata = field(default_factory=dict)
     context: Optional[HFContext] = None
 
@@ -354,7 +374,7 @@ class HFExample:
             id: str, # pylint: disable=redefined-builtin
             created_at: Optional[datetime.datetime] = None,
             intents: Union[List[HFIntentRef],List[HFIntent],List[str]] = None,
-            tags: List[HFTag] = None,
+            tags: List[HFTagReference] = None,
             metadata: HFMetadata = None,
             context: Optional[HFContext] = None
         ):
@@ -374,9 +394,6 @@ class HFExample:
         self.id = id
         self.text = text
         self.intents = intents
-        self.tags = tags
-        self.metadata = metadata
-
         self.tags = tags
         self.metadata = metadata
         self.context = context
@@ -420,33 +437,35 @@ class HFWorkspace:
     intents_by_id: Dict[str, HFIntent]
     examples: Dict[str, HFExample]
     tags: Dict[str, HFTag]
+    tag_reference: Dict[str, HFTagReference]
     delimiter: str
 
     def __init__(self):
         self.intents = {}
         self.intents_by_id = {}
         self.tags = {}
+        self.tag_reference = {}
         self.examples = {}
         self.delimiter = None
 
     def intent(self,
                name_or_hier: Union[str, List[str]],
                id: Optional[str] = None, # pylint: disable=redefined-builtin
-               tags: List[HFTag] = None,
+               tags: List[HFTagReference] = None,
                metadata: HFMetadata = None) -> HFIntent:
         '''Check whether the intent exists within the hierarchy provided, if it does return the intent object found
         If it does not, create it, along with all necessary parents that don't exist and return the new object
 
         Parameters
         ----------
-        name_or_hier: str | List[str]    The name of the intent if no hierachy or the top level of an intent hierarchy
-                                         i.e "billing"
-                                         Or a list of names of intents in a list in the order of their hierarchy
-                                         ["billing","issues","cannot_pay"]
-        id:           str,optional       If not present will be generated as a repeatable hash of the text
-        tags:         List[HFTags]       A list of tags placed on the intent and display in the tool
-        metadata:     dict | HFMetadata  A dict of string only key value pairs detailing information about the text
-                                         useful to an annotator in HF Studio
+        name_or_hier: str | List[str]       Name of the intent if no hierachy or the top level of an intent hierarchy
+                                            i.e "billing"
+                                            Or a list of names of intents in a list in the order of their hierarchy
+                                            ["billing","issues","cannot_pay"]
+        id:           str,optional          If not present will be generated as a repeatable hash of the text
+        tags:         List[HFTagReference]  A list of tags placed on the intent and display in the tool
+        metadata:     dict | HFMetadata     A dict of string only key value pairs detailing information about the text
+                                            useful to an annotator in HF Studio
         '''
         if tags is None:
             tags = []
@@ -497,13 +516,13 @@ class HFWorkspace:
 
         return last
 
-    def tag_intent(self, intent_id, tag: HFTag):
+    def tag_intent(self, intent_id, tag: HFTagReference):
         """Sets the intent tags"""
         # get the intent here
         intent = self.intent_by_id(intent_id)
         assert isinstance(intent, HFIntent)
         for i,_ in enumerate(intent.tags):
-            assert isinstance(intent.tags[i], HFTag)
+            assert isinstance(intent.tags[i], HFTagReference)
             if intent.tags[i] == tag.name:
                 intent.tags[i] = tag
                 self.intents_by_id[intent_id] = intent
@@ -636,19 +655,26 @@ class HFWorkspace:
         '''
         return self.intents_by_id.get(id)
 
-    def tag(self, tag: str, color: Optional[str] = None):
+    def tag(self, tag: str, color: Optional[str] = None, is_tag_ref: bool = True):
         '''Check whether tag (i.e tag name) already exists, if it does return the tag object with that name
         If not create the tag object
         '''
         if tag not in self.tags:
-            self.tags[tag] = HFTag(f'tag-{uuid.uuid4()}', tag, color)
-        return self.tags[tag]
+            tag_id = f'tag-{uuid.uuid4()}'
+            self.tags[tag] = HFTag(tag_id, tag, color)
+            self.tag_reference[tag] = HFTagReference(id = self.tags[tag].id,
+                                                     name = self.tags[tag].name)
+
+        if is_tag_ref:
+            return self.tag_reference[tag]
+        else:
+            return self.tags[tag]
 
     def example(self, text: str,
                 id: Optional[str] = None, # pylint: disable=redefined-builtin
                 created_at: Optional[datetime.datetime] = None,
                 intents: List[HFIntent] = None,
-                tags: List[HFTag] = None,
+                tags: List[HFTagReference] = None,
                 metadata: HFMetadata = None,
                 context: Optional[HFContext] = None) -> HFExample:
         '''Create a new example based on passed properties, assigning an ID if necessary

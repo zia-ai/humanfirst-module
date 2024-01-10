@@ -221,18 +221,28 @@ def test_tag_color_create():
     """test_tag_color_create"""
 
     labelled = humanfirst.objects.HFWorkspace()
-    tag = labelled.tag(tag='exclude')
+    tag = labelled.tag(tag='exclude', is_tag_ref=False)
     assert isinstance(tag, humanfirst.objects.HFTag)
     assert tag.color.startswith('#')
     assert len(tag.color) == 7
     old_color = tag.color
     new_color = '#ffffff'
     # if try to recreate, already exists tag doesn't change
-    tag = labelled.tag(tag='exclude', color=new_color)
+    tag = labelled.tag(tag='exclude', color=new_color, is_tag_ref=False)
     assert tag.color == old_color
     # creating new works
-    tag = labelled.tag(tag='exclude-white', color=new_color)
+    tag = labelled.tag(tag='exclude-white', color=new_color, is_tag_ref=False)
     assert tag.color == new_color
+
+
+def test_tag_reference():
+    """test_tag_reference"""
+
+    labelled = humanfirst.objects.HFWorkspace()
+    tag = labelled.tag(tag='exclude')
+    assert isinstance(tag, humanfirst.objects.HFTagReference)
+    # check if color is not present in the HFTagReference
+    assert "color" not in list(tag.__dict__.keys())
 
 
 def test_write_csv():
