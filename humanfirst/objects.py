@@ -287,7 +287,7 @@ class HFContext:
                         self.role = role
                     else:
                         raise HFContextRoleException(
-                            'Only roles of "client" or "expert" are currently supported with "converation" document type')
+                            'Only "client" or "expert" roles are currently supported with "converation" context type')
             else:
                 raise HFContextTypeException(
                     'Only "conversation" and "unknown" document types are currently supported')
