@@ -759,8 +759,8 @@ class HFWorkspace:
 
         return workspace
 
-    def write_json(self, output: IO, jsonl=False, indent=2):
-        '''Write workspace object into HF format for uploading to studio
+    def get_hf_json(self) -> dict:
+        '''Returns workspace object into HF format
         '''
 
         sorted_examples = list(self.examples.values())
@@ -782,6 +782,14 @@ class HFWorkspace:
                     del intent["parent_intent_id"]
                 list_intents.append(intent)
             workspace['intents'] = list_intents
+
+        return workspace
+
+    def write_json(self, output: IO, jsonl=False, indent=2):
+        '''Write workspace object into HF format for uploading to studio
+        '''
+
+        workspace = self.get_hf_json()
 
         if jsonl:
             indent = None

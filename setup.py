@@ -49,7 +49,7 @@ setup(
     classifiers=CLASSIFIERS,
     url='https://github.com/zia-ai/humanfirst-module',
     license='MIT',
-    python_requires=">=3.11",
+    python_requires=">=3.8",
     extras_require={
         "dev": [
             "twine==4.0.2",
