@@ -1011,6 +1011,91 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
 
+    def export_query_conversation_inputs(
+            self,
+            namespace: str,
+            playbook_id: str,
+            pipeline_id: str = "",
+            pipeline_step_id: str = "",
+            prompt_id: str = "",
+            generation_run_id: str = "",
+            order_by: int = 1,
+            order_direction_asc: bool = True,
+            dedup_by_hash: bool = False,
+            dedup_by_convo: bool = True
+            ) -> dict:
+        '''Returns the generated data
+        '''
+        metadata_keys = [
+            "pipelineId",
+            "pipelineStepId",
+            "promptId",
+            "generationRunId"
+        ]
+        metadata_values = [
+            pipeline_id,
+            pipeline_step_id,
+            prompt_id,
+            generation_run_id
+        ]
+        metadata_filters = []
+        for i,_ in enumerate(metadata_keys):
+            if metadata_values[i] != "":
+                metadata_filters.append({
+                    "key":metadata_keys[i],
+                    "operator":0,
+                    "value":metadata_values[i]
+                })
+        if order_direction_asc:
+            order_direction = 1
+        else:
+            order_direction = 2
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "input_predicates": [
+                {
+                    "metadata":{
+                        "conditions": metadata_filters
+                    }
+                },
+                {
+                    "deduping": {
+                        "by_hash": dedup_by_hash,
+                        "by_conversation": dedup_by_convo
+                    }
+                }
+            ],
+            "conversation_predicates": [
+                {
+                    "conversation_source": {
+                        "source_type": 13 # CONVERSATION_SOURCE_GENERATED
+                    }
+                }
+            ],
+            "order_by_value": {
+                "value": order_by
+            },
+            "order_direction": order_direction
+        }
+
+        headers = self._get_headers()
+
+        base_url = 'https://api.humanfirst.ai/'
+        args_url = 'v1alpha1/conversations/query/inputs/export'
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        res = self._validate_response(response, url)
+        downloadable_url = f'https://api.humanfirst.ai{res["exportUrlPath"]}'
+        return self._download_file_from_url(downloadable_url)
+
+    def _download_file_from_url(self, url: str) -> dict:
+        """Download file from url"""
+
+        headers = self._get_headers()
+        downloaded_json = requests.request("GET", url, headers=headers, timeout=TIMEOUT)
+        return downloaded_json
 
     # *****************************************************************************************************************
     # Integrations
@@ -1265,4 +1350,27 @@ class HFAPI:
 
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
+
+    # *****************************************************************************************************************
+    # Pipeline
+    # *****************************************************************************************************************
+
+    def trigger_playbook_pipeline(self,
+                                  namespace: str,
+                                  playbook_id: str,
+                                  pipeline_id: str) -> dict:
+        '''Triggers a pipeline'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "pipeline_id": pipeline_id
+        }
+
+        headers = self._get_headers()
+        base_url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
+        args_url = f"/{namespace}/{playbook_id}/pipelines/{pipeline_id}:trigger"
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)

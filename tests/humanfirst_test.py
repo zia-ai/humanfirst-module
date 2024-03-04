@@ -221,18 +221,28 @@ def test_tag_color_create():
     """test_tag_color_create"""
 
     labelled = humanfirst.objects.HFWorkspace()
-    tag = labelled.tag(tag='exclude')
+    tag = labelled.tag(tag='exclude', is_tag_ref=False)
     assert isinstance(tag, humanfirst.objects.HFTag)
     assert tag.color.startswith('#')
     assert len(tag.color) == 7
     old_color = tag.color
     new_color = '#ffffff'
     # if try to recreate, already exists tag doesn't change
-    tag = labelled.tag(tag='exclude', color=new_color)
+    tag = labelled.tag(tag='exclude', color=new_color, is_tag_ref=False)
     assert tag.color == old_color
     # creating new works
-    tag = labelled.tag(tag='exclude-white', color=new_color)
+    tag = labelled.tag(tag='exclude-white', color=new_color, is_tag_ref=False)
     assert tag.color == new_color
+
+
+def test_tag_reference():
+    """test_tag_reference"""
+
+    labelled = humanfirst.objects.HFWorkspace()
+    tag = labelled.tag(tag='exclude')
+    assert isinstance(tag, humanfirst.objects.HFTagReference)
+    # check if color is not present in the HFTagReference
+    assert "color" not in list(tag.__dict__.keys())
 
 
 def test_write_csv():
@@ -300,6 +310,37 @@ def test_read_json():
     intent_index = workspace.get_intent_index("-")
     assert list(intent_index.values()) == [
             "GROUP1", "GROUP1-GROUP1_EN_INJURED_AT_THE_ZOO", "GROUP2", "GROUP2-GROUP2_DREADFULLY_INJURED"]
+
+def test_write_json():
+    """test_write_json"""
+
+    input_file = "./examples/json_model_example_output.json"
+    workspace = humanfirst.objects.HFWorkspace()
+    json_input_1 = json.loads(open(input_file, 'r', encoding='utf8').read())
+    workspace = workspace.from_json(json_input_1,delimiter=None)
+
+    output_file = input_file.replace(".json","_123.json")
+    file_out = open(output_file, 'w', encoding='utf8')
+    workspace.write_json(file_out)
+    file_out.close()
+
+    json_input_2 = json.loads(open(output_file, 'r', encoding='utf8').read())
+
+    df_example_1 = pandas.json_normalize(data=json_input_1["examples"], sep="-")
+    df_example_2 = pandas.json_normalize(data=json_input_2["examples"], sep="-")
+    df_intent_1 = pandas.json_normalize(data=json_input_1["intents"], sep="-")
+    df_intent_2 = pandas.json_normalize(data=json_input_2["intents"], sep="-")
+    df_tag_1 = pandas.json_normalize(data=json_input_1["tags"], sep="-")
+    df_tag_2 = pandas.json_normalize(data=json_input_2["tags"], sep="-")
+
+    assert df_example_1.equals(df_example_2)
+    assert df_intent_1.equals(df_intent_2)
+    assert df_tag_1.equals(df_tag_2)
+
+    # Check if file exists
+    if os.path.exists(output_file):
+        # Delete the file
+        os.remove(output_file)
 
 
 def test_tag_filter_validation():

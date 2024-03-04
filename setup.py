@@ -14,7 +14,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '1.0.4'
+VERSION = '1.0.5'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
@@ -49,7 +49,7 @@ setup(
     classifiers=CLASSIFIERS,
     url='https://github.com/zia-ai/humanfirst-module',
     license='MIT',
-    python_requires=">=3.11",
+    python_requires=">=3.8",
     extras_require={
         "dev": [
             "twine==4.0.2",
