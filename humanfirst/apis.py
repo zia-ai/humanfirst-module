@@ -1018,7 +1018,11 @@ class HFAPI:
             pipeline_id: str = "",
             pipeline_step_id: str = "",
             prompt_id: str = "",
-            generation_run_id: str = ""
+            generation_run_id: str = "",
+            order_by: int = 1,
+            order_direction_asc: bool = True,
+            dedup_by_hash: bool = False,
+            dedup_by_convo: bool = True
             ) -> dict:
         '''Returns the generated data
         '''
@@ -1042,6 +1046,10 @@ class HFAPI:
                     "operator":0,
                     "value":metadata_values[i]
                 })
+        if order_direction_asc:
+            order_direction = 1
+        else:
+            order_direction = 2
         payload = {
             "namespace": namespace,
             "playbook_id": playbook_id,
@@ -1049,6 +1057,12 @@ class HFAPI:
                 {
                     "metadata":{
                         "conditions": metadata_filters
+                    }
+                },
+                {
+                    "deduping": {
+                        "by_hash": dedup_by_hash,
+                        "by_conversation": dedup_by_convo
                     }
                 }
             ],
@@ -1058,7 +1072,11 @@ class HFAPI:
                         "source_type": 13 # CONVERSATION_SOURCE_GENERATED
                     }
                 }
-            ]
+            ],
+            "order_by_value": {
+                "value": order_by
+            },
+            "order_direction": order_direction
         }
 
         headers = self._get_headers()
@@ -1350,7 +1368,7 @@ class HFAPI:
         }
 
         headers = self._get_headers()
-        base_url = f'https://api.humanfirst.ai/v1alpha1/playbooks'
+        base_url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
         args_url = f"/{namespace}/{playbook_id}/pipelines/{pipeline_id}:trigger"
         url = f'{base_url}{args_url}'
         response = requests.request(
