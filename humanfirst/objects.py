@@ -300,17 +300,22 @@ class HFContext:
                  role: Optional[str] = None):
         self.context_id = context_id
         if type and type != '':
-            if type in ['conversation','unknown']:
+            if type in ['conversation',"utterance","training_phrase",'unknown']:
                 self.type = type
                 if role and role != '':
-                    if role in ['expert', 'client']:
-                        self.role = role
+                    if type == 'conversation':
+                        if role in ['expert', 'client']:
+                            self.role = role
+                        else:
+                            raise HFContextRoleException(
+                                'Only "client" or "expert" roles are currently supported with "converation" context type')
                     else:
                         raise HFContextRoleException(
-                            'Only "client" or "expert" roles are currently supported with "converation" context type')
+                            'Not expecting a role for context types except conersation'
+                        )
             else:
                 raise HFContextTypeException(
-                    'Only "conversation" and "unknown" document types are currently supported')
+                    'Only "conversation","utterance","training_phrase" and "unknown" document types are currently supported')
 
 
 @dataclass_json
