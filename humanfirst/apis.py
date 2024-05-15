@@ -310,7 +310,6 @@ class HFAPI:
                     hierarchical_delimiter="-",
                     hierarchical_intent_name_disabled: bool = True,
                     zip_encoding: bool = False,
-                    hierarchical_follow_up: bool = True,
                     include_negative_phrases: bool = False
                     ) -> dict:
         '''Returns the actual training information including where present in the workspace
@@ -327,7 +326,6 @@ class HFAPI:
                 "hierarchical_intent_name_disabled": hierarchical_intent_name_disabled,
                 "hierarchical_delimiter": hierarchical_delimiter,
                 "zip_encoding": zip_encoding,
-                "hierarchical_follow_up": hierarchical_follow_up,
                 "include_negative_phrases": include_negative_phrases
             }
         }
@@ -440,7 +438,6 @@ class HFAPI:
             hierarchical_delimiter: str = "/",
             zip_encoding: bool = False,
             gzip_encoding: bool = False,
-            hierarchical_follow_up: bool = False,
             include_negative_phrases: bool = False,
             skip_empty_intents: bool = True,
             clear_intents: bool = False,
@@ -473,7 +470,6 @@ class HFAPI:
                 'hierarchical_delimiter': hierarchical_delimiter,
                 'zip_encoding': zip_encoding,
                 'gzip_encoding': gzip_encoding,
-                'hierarchical_follow_up': hierarchical_follow_up,
                 'include_negative_phrases': include_negative_phrases,
                 # intent_tag_predicate: {},
                 # phrase_tag_predicate: {},
@@ -517,7 +513,6 @@ class HFAPI:
             hierarchical_delimiter: str = "/"
             # zip_encoding: bool = False,
             # gzip_encoding: bool = False,
-            # hierarchical_follow_up: bool = False,
             # clear_intents: bool = False,
             # clear_entities: bool = False,
             # clear_tags: bool = False,
@@ -555,7 +550,6 @@ class HFAPI:
                 #     "hierarchical_delimiter": hierarchical_delimiter,
                 #     "zip_encoding": zip_encoding,
                 #     "gzip_encoding": gzip_encoding,
-                #     "hierarchical_follow_up": hierarchical_follow_up,
                 #     "import_options": {
                 #         "clear_intents": clear_intents,
                 #         "clear_entities": clear_entities,
@@ -1147,7 +1141,6 @@ class HFAPI:
             hierarchical_delimiter: str = '--',
             zip_encoding: bool = False,
             gzip_encoding: bool = False,
-            hierarchical_follow_up: bool = True,
             include_negative_phrases: bool = False,
             skip_empty_intents: bool = True,
             clear_intents: bool = False,
@@ -1180,7 +1173,6 @@ class HFAPI:
                 "hierarchical_delimiter": hierarchical_delimiter,
                 "zip_encoding": zip_encoding,
                 "gzip_encoding": gzip_encoding,
-                "hierarchical_follow_up": hierarchical_follow_up,
                 "include_negative_phrases": include_negative_phrases,
                 "skip_empty_intents": skip_empty_intents
             },
