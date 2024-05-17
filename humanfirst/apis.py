@@ -777,9 +777,9 @@ class HFAPI:
                                 namespace: str,
                                 playbook: str,
                                 model_id: str = None,
-                                confidence_threshold: float = 0.7, # This is the default in the GUI
+                                confidence_threshold: int = 70, # This is the default in the GUI
                                 coverage_type: int = 1, # COVERAGE_TYPE_TOTAL
-                                data_selection: int = 2 # DATA_TYPE_UPLOADED
+                                data_selection: int = 1 # DATA_TYPE_ALL
                                 ):
         '''Get the coverage calculation at a certain clip returned as a csv file
 
@@ -810,6 +810,8 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest/export'
+        params = f'?namespace={namespace}&playbook={playbook}&confidence_threshold={confidence_threshold}&coverage_type={coverage_type}&data_selection={data_selection}'
+        url = url + params
 
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
