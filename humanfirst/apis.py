@@ -148,7 +148,8 @@ class HFAPI:
                            url: str,
                            field: str = None,
                            payload: dict = None,
-                           wantzip: bool = False
+                           wantzip: bool = False,
+                           wantcsv: bool = False
         ):
         """Validate the response from the API and provide consistent aerror handling"""
         if payload is None:
@@ -164,6 +165,9 @@ class HFAPI:
                 return response
             else:
                 return HFAPIResponseValidationException(url=url, payload=payload, response=response, wantzip=wantzip)
+        elif wantcsv:
+            if 'Content-Type' in response.headers and 'text/csv; charset=UTF-8;' in response.headers['Content-Type']:
+                return response.text
         # else we assume we are looking for a json object
         else:
             # so if it's a string raise that as an error
@@ -628,6 +632,21 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
 
+    def list_trained_nlu(self, namespace: str, playbook: str) -> dict:
+        '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook
+        }
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/nlu'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, field="runs")
+
+
     def trigger_train_nlu(self, namespace: str, playbook: str, nlu_id: str,
                         force_train: bool = True, skip_train: bool= False,
                         force_infer: bool = False, skip_infer: bool = True,
@@ -718,6 +737,84 @@ class HFAPI:
         response = requests.request(
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "predictions")
+
+    # *****************************************************************************************************************
+    # Coverage
+    # *****************************************************************************************************************
+
+    def get_intents_coverage_request(self,
+                                     namespace: str,
+                                     playbook: str,
+                                     data_selection: int = 1,
+                                     model_id: str = None):
+        '''Download a set of coverage histogram data at 0.5 confidence clip intervals
+
+        data_selection values are:
+        DATA_TYPE_DEFAULT = 0
+        DATA_TYPE_ALL = 1
+        DATA_TYPE_UPLOADED = 2
+        DATA_TYPE_GENERATED = 3
+        '''
+
+        payload = {
+            "namespace": namespace,
+            "playbook": playbook,
+            "data_selection": data_selection
+        }
+
+        if model_id:
+            payload["model_id"] = model_id
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest'
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "report")
+
+    def export_intents_coverage(self,
+                                namespace: str,
+                                playbook: str,
+                                model_id: str = None,
+                                confidence_threshold: float = 0.7, # This is the default in the GUI
+                                coverage_type: int = 1, # COVERAGE_TYPE_TOTAL
+                                data_selection: int = 2 # DATA_TYPE_UPLOADED
+                                ):
+        '''Get the coverage calculation at a certain clip returned as a csv file
+
+        coverage_type
+        COVERAGE_TYPE_UNIQUE = 0;
+        COVERAGE_TYPE_TOTAL = 1;
+
+        data_selection values are:
+        DATA_TYPE_DEFAULT = 0
+        DATA_TYPE_ALL = 1
+        DATA_TYPE_UPLOADED = 2
+        DATA_TYPE_GENERATED = 3
+        '''
+
+        payload = {
+            "namespace": namespace,
+            "playbook": playbook,
+            "confidence_threshold": confidence_threshold,
+            "coverage_type": coverage_type,
+            "data_selection": data_selection
+        }
+
+        if model_id:
+            payload["model_id"] = model_id
+
+        print(payload)
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest/export'
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, wantcsv=True)
+
 
     # *****************************************************************************************************************
     # Authorisation
@@ -824,8 +921,8 @@ class HFAPI:
     # Conversation sets and Querying Processed Conversation set data
     # *****************************************************************************************************************
 
-    def get_conversion_set_list(self, namespace: str) -> tuple:
-        """Conversation set list"""
+    def get_conversation_set_list(self, namespace: str) -> tuple:
+        """Get all the conversation sets and their info for a namespaces"""
 
         payload = {}
 
@@ -834,8 +931,9 @@ class HFAPI:
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets?namespace={namespace}"
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-        response = self._validate_response(response=response,url=url)
-        conversation_sets = response.json()['conversationSets']
+        conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
+
+        # make it a list looking up each individual one
         conversation_set_list = []
         for conversation_set in conversation_sets:
             conversation_set_id = conversation_set['id']
@@ -843,8 +941,7 @@ class HFAPI:
             url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{conversation_set_id}"
             response = requests.request(
                 "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-            response = self._validate_response(response=response,url=url)
-            conversation_set = response.json()
+            conversation_set = self._validate_response(response=response,url=url)
 
             if "state" in conversation_set.keys():
                 conversation_set["no_data_file_is_uploaded_since_creation"] = False
@@ -961,12 +1058,15 @@ class HFAPI:
             namespace: str,
             workspace: str,
             search_text: str = "",
-            start_isodate: str = "",
-            end_isodate: str = "",
             page_size: int = 10,
             convsetsource: str = "",
-            next_page_token: str = "") -> dict:
-        '''Do a search and return the big data with predicates'''
+            next_page_token: str = "",
+            start_isodate: str = '1970-01-01T00:00:00Z',
+            end_isodate: str = '2049-12-31T23:59:59Z'
+            ) -> dict:
+        '''Do a search and return the big data with predicates
+        Defaults dates to clock tick 0 to 2049 if not provided
+        Dates as string in iso format'''
         predicates = []
         if search_text and search_text != '':
             predicates.append({"inputMatch": {"text": search_text}})
