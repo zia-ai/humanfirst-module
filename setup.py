@@ -14,7 +14,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
