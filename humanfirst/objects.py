@@ -311,7 +311,7 @@ class HFContext:
                                 'Only "client" or "expert" roles are currently supported with "converation" context type')
                     else:
                         raise HFContextRoleException(
-                            'Not expecting a role for context types except conersation'
+                            'Not expecting a role for context types except conversation'
                         )
             else:
                 raise HFContextTypeException(
