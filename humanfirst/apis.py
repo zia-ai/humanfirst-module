@@ -148,7 +148,8 @@ class HFAPI:
                            url: str,
                            field: str = None,
                            payload: dict = None,
-                           wantzip: bool = False
+                           wantzip: bool = False,
+                           wantcsv: bool = False
         ):
         """Validate the response from the API and provide consistent aerror handling"""
         if payload is None:
@@ -164,6 +165,9 @@ class HFAPI:
                 return response
             else:
                 return HFAPIResponseValidationException(url=url, payload=payload, response=response, wantzip=wantzip)
+        elif wantcsv:
+            if 'Content-Type' in response.headers and 'text/csv; charset=UTF-8;' in response.headers['Content-Type']:
+                return response.text
         # else we assume we are looking for a json object
         else:
             # so if it's a string raise that as an error
@@ -310,7 +314,6 @@ class HFAPI:
                     hierarchical_delimiter="-",
                     hierarchical_intent_name_disabled: bool = True,
                     zip_encoding: bool = False,
-                    hierarchical_follow_up: bool = True,
                     include_negative_phrases: bool = False
                     ) -> dict:
         '''Returns the actual training information including where present in the workspace
@@ -327,7 +330,6 @@ class HFAPI:
                 "hierarchical_intent_name_disabled": hierarchical_intent_name_disabled,
                 "hierarchical_delimiter": hierarchical_delimiter,
                 "zip_encoding": zip_encoding,
-                "hierarchical_follow_up": hierarchical_follow_up,
                 "include_negative_phrases": include_negative_phrases
             }
         }
@@ -440,7 +442,6 @@ class HFAPI:
             hierarchical_delimiter: str = "/",
             zip_encoding: bool = False,
             gzip_encoding: bool = False,
-            hierarchical_follow_up: bool = False,
             include_negative_phrases: bool = False,
             skip_empty_intents: bool = True,
             clear_intents: bool = False,
@@ -473,7 +474,6 @@ class HFAPI:
                 'hierarchical_delimiter': hierarchical_delimiter,
                 'zip_encoding': zip_encoding,
                 'gzip_encoding': gzip_encoding,
-                'hierarchical_follow_up': hierarchical_follow_up,
                 'include_negative_phrases': include_negative_phrases,
                 # intent_tag_predicate: {},
                 # phrase_tag_predicate: {},
@@ -517,7 +517,6 @@ class HFAPI:
             hierarchical_delimiter: str = "/"
             # zip_encoding: bool = False,
             # gzip_encoding: bool = False,
-            # hierarchical_follow_up: bool = False,
             # clear_intents: bool = False,
             # clear_entities: bool = False,
             # clear_tags: bool = False,
@@ -555,7 +554,6 @@ class HFAPI:
                 #     "hierarchical_delimiter": hierarchical_delimiter,
                 #     "zip_encoding": zip_encoding,
                 #     "gzip_encoding": gzip_encoding,
-                #     "hierarchical_follow_up": hierarchical_follow_up,
                 #     "import_options": {
                 #         "clear_intents": clear_intents,
                 #         "clear_entities": clear_entities,
@@ -633,6 +631,21 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
+
+    def list_trained_nlu(self, namespace: str, playbook: str) -> dict:
+        '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook
+        }
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/nlu'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, field="runs")
+
 
     def trigger_train_nlu(self, namespace: str, playbook: str, nlu_id: str,
                         force_train: bool = True, skip_train: bool= False,
@@ -724,6 +737,89 @@ class HFAPI:
         response = requests.request(
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "predictions")
+
+    # *****************************************************************************************************************
+    # Coverage
+    # *****************************************************************************************************************
+
+    def get_intents_coverage_request(self,
+                                     namespace: str,
+                                     playbook: str,
+                                     data_selection: int = 1,
+                                     model_id: str = None):
+        '''Download a set of coverage histogram data at 0.5 confidence clip intervals
+        TODO: this is unvalidated in academy
+
+        data_selection values are:
+        DATA_TYPE_DEFAULT = 0
+        DATA_TYPE_ALL = 1
+        DATA_TYPE_UPLOADED = 2
+        DATA_TYPE_GENERATED = 3
+        '''
+
+        payload = {
+            "namespace": namespace,
+            "playbook": playbook,
+            "data_selection": data_selection
+        }
+
+        if model_id:
+            payload["model_id"] = model_id
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest'
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "report")
+
+    def export_intents_coverage(self,
+                                namespace: str,
+                                playbook: str,
+                                model_id: str = None,
+                                confidence_threshold: int = 70, # This is the default in the GUI
+                                coverage_type: int = 1, # COVERAGE_TYPE_TOTAL
+                                data_selection: int = 1 # DATA_TYPE_ALL
+                                ):
+        '''Get the coverage calculation at a certain clip returned as a csv file
+        This works the same as downloading the coverage report from the intents tab
+
+        coverage_type
+        COVERAGE_TYPE_UNIQUE = 0;
+        COVERAGE_TYPE_TOTAL = 1;
+
+        data_selection values are:
+        DATA_TYPE_DEFAULT = 0
+        DATA_TYPE_ALL = 1
+        DATA_TYPE_UPLOADED = 2
+        DATA_TYPE_GENERATED = 3
+        '''
+
+        payload = {
+            "namespace": namespace,
+            "playbook": playbook,
+            "confidence_threshold": confidence_threshold,
+            "coverage_type": coverage_type,
+            "data_selection": data_selection
+        }
+
+        if model_id:
+            payload["model_id"] = model_id
+
+        print(payload)
+
+        headers = self._get_headers()
+
+        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest/export'
+        params0 = f'?namespace={namespace}&playbook={playbook}&confidence_threshold={confidence_threshold}'
+        params1 = f'&coverage_type={coverage_type}&data_selection={data_selection}'
+        url = url + params0 + params1
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, wantcsv=True)
+
 
     # *****************************************************************************************************************
     # Authorisation
@@ -830,8 +926,8 @@ class HFAPI:
     # Conversation sets and Querying Processed Conversation set data
     # *****************************************************************************************************************
 
-    def get_conversion_set_list(self, namespace: str) -> tuple:
-        """Conversation set list"""
+    def get_conversation_set_list(self, namespace: str) -> tuple:
+        """Get all the conversation sets and their info for a namespaces"""
 
         payload = {}
 
@@ -840,8 +936,9 @@ class HFAPI:
         url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets?namespace={namespace}"
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-        response = self._validate_response(response=response,url=url)
-        conversation_sets = response.json()['conversationSets']
+        conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
+
+        # make it a list looking up each individual one
         conversation_set_list = []
         for conversation_set in conversation_sets:
             conversation_set_id = conversation_set['id']
@@ -849,8 +946,7 @@ class HFAPI:
             url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{conversation_set_id}"
             response = requests.request(
                 "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-            response = self._validate_response(response=response,url=url)
-            conversation_set = response.json()
+            conversation_set = self._validate_response(response=response,url=url)
 
             if "state" in conversation_set.keys():
                 conversation_set["no_data_file_is_uploaded_since_creation"] = False
@@ -967,12 +1063,16 @@ class HFAPI:
             namespace: str,
             workspace: str,
             search_text: str = "",
-            start_isodate: str = "",
-            end_isodate: str = "",
             page_size: int = 10,
             convsetsource: str = "",
-            next_page_token: str = "") -> dict:
-        '''Do a search and return the big data with predicates'''
+            next_page_token: str = "",
+            start_isodate: str = '1970-01-01T00:00:00Z',
+            end_isodate: str = '2049-12-31T23:59:59Z'
+            ) -> dict:
+        '''This will seach a converation set for converations and return
+        the examples threaded along with their data like entropy, margin
+        the nearest neighbour weights, the classifications and original
+        inputs - on ABCD 20 conversations returns about 28k rows formatted'''
         predicates = []
         if search_text and search_text != '':
             predicates.append({"inputMatch": {"text": search_text}})
@@ -989,8 +1089,8 @@ class HFAPI:
         if convsetsource and convsetsource != "":
             predicates.append(
                 {"conversationSet": {"conversationSetIds": [convsetsource]}})
-        # if next_page_token and next_page_token != "":
-        #     predicates.append({"PageTokenData":{"PageToken":next_page_token}})
+        if next_page_token and next_page_token != "":
+            predicates.append({"PageTokenData":{"PageToken":next_page_token}})
 
         if len(predicates) == 0:
             raise HFAPIParameterException(
@@ -1001,8 +1101,9 @@ class HFAPI:
             "predicates": predicates,
             "pageSize": page_size
         }
-        if next_page_token and next_page_token != "":
-            payload["page_token"] = next_page_token
+        # TODO: this gives an error if passed - proto doesn't like PageTokenData\
+        # if next_page_token and next_page_token != "":
+        #     payload["page_token"] = next_page_token
 
         headers = self._get_headers()
 
@@ -1017,20 +1118,32 @@ class HFAPI:
             playbook_id: str,
             pipeline_id: str = "",
             pipeline_step_id: str = "",
+            exists_filter_key_name: str = "",
+            download_format: int = 1, # 1 = JSON 2 = CSV
             prompt_id: str = "",
             generation_run_id: str = "",
             order_by: int = 1,
             order_direction_asc: bool = True,
             dedup_by_hash: bool = False,
-            dedup_by_convo: bool = True
+            dedup_by_convo: bool = False,
+            exclude_phrase_objects: bool = True, # TODO: unclear why this is set
+            source_kind: int = 2 # DEFAULT TO GENERATED
             ) -> dict:
-        '''Returns the generated data
+        '''Returns the generated data as as JSON or a as a
+        CSV text file
+
+        source_kind
+        SOURCE_KIND_UNSPECIFIED = 0;
+        SOURCE_KIND_UNLABELED = 1;
+        SOURCE_KIND_GENERATED = 2;
         '''
+
+        # operator 0 EQUALS filter types
         metadata_keys = [
             "pipelineId",
             "pipelineStepId",
             "promptId",
-            "generationRunId"
+            "generationRunId",
         ]
         metadata_values = [
             pipeline_id,
@@ -1042,10 +1155,20 @@ class HFAPI:
         for i,_ in enumerate(metadata_keys):
             if metadata_values[i] != "":
                 metadata_filters.append({
-                    "key":metadata_keys[i],
-                    "operator":0,
-                    "value":metadata_values[i]
+                    "key": metadata_keys[i],
+                    "operator": 0, # EQUALS
+                    "value": metadata_values[i]
                 })
+        # operator 4 exists
+        if exists_filter_key_name != "":
+            exists_filter = {
+                "key": exists_filter_key_name,
+                "operator": 4, # EXISTS
+                "optional": False,
+                "value": ""
+            }
+            metadata_filters.append(exists_filter)
+
         if order_direction_asc:
             order_direction = 1
         else:
@@ -1054,6 +1177,11 @@ class HFAPI:
             "namespace": namespace,
             "playbook_id": playbook_id,
             "input_predicates": [
+                {
+                    "source": {
+                        "source": 1 # TODO: UNKNOWN CURRENTLY
+                    }
+                },
                 {
                     "metadata":{
                         "conditions": metadata_filters
@@ -1064,12 +1192,19 @@ class HFAPI:
                         "by_hash": dedup_by_hash,
                         "by_conversation": dedup_by_convo
                     }
+                },
+                {
+                    "trainingPhrase":
+                        {
+                            "excludePhraseObjects": exclude_phrase_objects
+                        }
                 }
             ],
+            "format": download_format,
             "conversation_predicates": [
                 {
                     "conversation_source": {
-                        "source_type": 13 # CONVERSATION_SOURCE_GENERATED
+                        "source_kind": source_kind
                     }
                 }
             ],
@@ -1088,14 +1223,18 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         res = self._validate_response(response, url)
         downloadable_url = f'https://api.humanfirst.ai{res["exportUrlPath"]}'
-        return self._download_file_from_url(downloadable_url)
+        return self._download_file_from_url(downloadable_url, download_format)
 
-    def _download_file_from_url(self, url: str) -> dict:
+    def _download_file_from_url(self, url: str, download_format: int) -> dict:
         """Download file from url"""
-
         headers = self._get_headers()
         downloaded_json = requests.request("GET", url, headers=headers, timeout=TIMEOUT)
-        return downloaded_json
+        if download_format == 1: #JSON
+            return downloaded_json.json()
+        elif download_format == 2: #CSV
+            return downloaded_json.text
+        else:
+            raise RuntimeError(f'Unrecognised download format: {download_format}')
 
     # *****************************************************************************************************************
     # Integrations
@@ -1147,7 +1286,6 @@ class HFAPI:
             hierarchical_delimiter: str = '--',
             zip_encoding: bool = False,
             gzip_encoding: bool = False,
-            hierarchical_follow_up: bool = True,
             include_negative_phrases: bool = False,
             skip_empty_intents: bool = True,
             clear_intents: bool = False,
@@ -1180,7 +1318,6 @@ class HFAPI:
                 "hierarchical_delimiter": hierarchical_delimiter,
                 "zip_encoding": zip_encoding,
                 "gzip_encoding": gzip_encoding,
-                "hierarchical_follow_up": hierarchical_follow_up,
                 "include_negative_phrases": include_negative_phrases,
                 "skip_empty_intents": skip_empty_intents
             },
@@ -1374,3 +1511,20 @@ class HFAPI:
         response = requests.request(
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url)
+
+    def list_playbook_pipelines(self,
+                                namespace: str,
+                                playbook_id: str) -> dict:
+        '''List pipelines for a playbook'''
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+        }
+
+        headers = self._get_headers()
+        base_url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
+        args_url = f"/{namespace}/{playbook_id}/pipelines"
+        url = f'{base_url}{args_url}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, field="pipelines")
