@@ -244,20 +244,20 @@ class HFIntent:
      name:      str            name of intent that will be displayed in HF studio
      metadata:  dict           a dictionary or HFMetadata object of string only key value pairs
      tags:      list           a list of HFTagReference objects
-     parentId: str, optional  a reference to the ID of the immediate parent if using hierarchy intents
+     parent_intent_id: str, optional  a reference to the ID of the immediate parent if using hierarchy intents
      '''
     id: str
     name: str
     metadata: HFMetadata = field(default_factory=dict)
     tags: List[HFTagReference] = field(default_factory=list)
-    parentId: Optional[str] = None
+    parent_intent_id: Optional[str] = None
 
     def __init__(self,
                  id: str, # pylint: disable=redefined-builtin
                  name: str,
                  metadata: HFMetadata = None,
                  tags: List[HFTagReference] = None,
-                 parentId: Optional[str] = None):
+                 parent_intent_id: Optional[str] = None):
 
 
         if metadata is None:
@@ -268,7 +268,7 @@ class HFIntent:
 
         self.id = id
         self.name = name
-        self.parentId = parentId
+        self.parent_intent_id = parent_intent_id
         self.metadata = metadata
         self.tags = tags
 
@@ -481,7 +481,7 @@ class HFWorkspace:
         if not isinstance(name_or_hier, list):
             name_or_hier = [name_or_hier]
 
-        parentId = None
+        parent_intent_id = None
         last = None
         for i,part in enumerate(name_or_hier):
 
@@ -510,14 +510,14 @@ class HFWorkspace:
                 intent = HFIntent(
                     id=genid,
                     name=part,
-                    parentId=parentId,
+                    parent_intent_id=parent_intent_id,
                     metadata=metadata,
                     tags=tags,
                 )
                 self.intents[full_intent_path] = intent
                 self.intents_by_id[genid] = intent
             last = self.intents[full_intent_path]
-            parentId = last.id
+            parent_intent_id = last.id
 
         return last
 
@@ -550,8 +550,8 @@ class HFWorkspace:
         for intent_id in self.intents_by_id:
             working = self.intents_by_id[intent_id]
             fullpath = working.name
-            while working.parentId:
-                working = self.intents_by_id[working.parentId]
+            while working.parent_intent_id:
+                working = self.intents_by_id[working.parent_intent_id]
                 fullpath = f'{working.name}{delimiter}{fullpath}'
             intent_name_index[intent_id] = fullpath
         return intent_name_index
@@ -731,8 +731,8 @@ class HFWorkspace:
 
         working = self.intents_by_id[intent_id]
         fullpath = working.name
-        while working.parentId:
-            working = self.intents_by_id[working.parentId]
+        while working.parent_intent_id:
+            working = self.intents_by_id[working.parent_intent_id]
             fullpath = f'{working.name}{self.delimiter}{fullpath}'
 
         return fullpath
@@ -783,8 +783,8 @@ class HFWorkspace:
             for intent in self.intents.values():
                 intent = intent.to_dict()
                 # schema does not accept null parent id
-                if intent["parentId"] is None:
-                    del intent["parentId"]
+                if intent["parent_intent_id"] is None:
+                    del intent["parent_intent_id"]
                 list_intents.append(intent)
             workspace['intents'] = list_intents
 
