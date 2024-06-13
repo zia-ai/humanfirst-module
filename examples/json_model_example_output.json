@@ -2,7 +2,7 @@
   "$schema": "https://docs.humanfirst.ai/hf-json-schema.json",
   "examples": [
     {
-      "id": "example-id-12431234",
+      "id": "example-id-1",
       "text": "I was dreadfully mauled at the zoo",
       "created_at": "2023-06-05T14:26:07+00:00",
       "intents": [
@@ -11,11 +11,10 @@
         }
       ],
       "tags": [],
-      "metadata": {},
-      "context": {}
+      "metadata": {}
     },
     {
-      "id": "example-id-12431235",
+      "id": "example-id-2",
       "text": "The boa constrictor ate my icecream",
       "created_at": "2023-06-05T14:26:08+00:00",
       "intents": [
@@ -23,12 +22,16 @@
           "intent_id": "intent-1"
         }
       ],
-      "tags": [],
-      "metadata": {},
-      "context": {}
+      "tags": [
+        {
+          "id": "tag-2",
+          "name": "utterance_tag"
+        }
+      ],
+      "metadata": {}
     },
     {
-      "id": "example-id-12431236",
+      "id": "example-id-3",
       "text": "A piano fell from great height on me",
       "created_at": "2023-06-05T14:26:09+00:00",
       "intents": [
@@ -37,11 +40,10 @@
         }
       ],
       "tags": [],
-      "metadata": {},
-      "context": {}
+      "metadata": {}
     },
     {
-      "id": "example-id-12431237",
+      "id": "example-id-4",
       "text": "A box labelled ACME exploded in my face",
       "created_at": "2023-06-05T14:26:10+00:00",
       "intents": [
@@ -49,9 +51,25 @@
           "intent_id": "intent-3"
         }
       ],
-      "tags": [],
-      "metadata": {},
-      "context": {}
+      "tags": [
+        {
+          "id": "tag-2",
+          "name": "utterance_tag"
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "tags": [
+    {
+      "id": "tag-1",
+      "name": "intent_tag",
+      "color": "#a69890"
+    },
+    {
+      "id": "tag-2",
+      "name": "utterance_tag",
+      "color": "#698b32"
     }
   ],
   "intents": [
@@ -59,28 +77,36 @@
       "id": "intent-0",
       "name": "GROUP1",
       "metadata": {},
-      "tags": [],
-      "parent_intent_id": null
+      "tags": []
     },
     {
       "id": "intent-1",
       "name": "GROUP1_EN_INJURED_AT_THE_ZOO",
       "metadata": {},
-      "tags": [],
+      "tags": [
+        {
+          "id": "tag-1",
+          "name": "intent_tag"
+        }
+      ],
       "parent_intent_id": "intent-0"
     },
     {
       "id": "intent-2",
       "name": "GROUP2",
       "metadata": {},
-      "tags": [],
-      "parent_intent_id": null
+      "tags": []
     },
     {
       "id": "intent-3",
       "name": "GROUP2_DREADFULLY_INJURED",
       "metadata": {},
-      "tags": [],
+      "tags": [
+        {
+          "id": "tag-1",
+          "name": "intent_tag"
+        }
+      ],
       "parent_intent_id": "intent-2"
     }
   ]

@@ -20,6 +20,10 @@ from typing import IO, Any, Dict, List, Optional, Union
 import logging
 import logging.config
 import os
+<<<<<<< HEAD
+=======
+import uuid
+>>>>>>> master
 
 # third party imports
 from dataclasses import dataclass, field
@@ -99,9 +103,6 @@ class HFTag:
 
     Validates the format of a tag
 
-    Tags can be added HFIntents (intent level) or HFExamples (utterance level)
-    In general separate tags should be used for each
-
     Parameters
     ----------
     id:    str            unique id for tag
@@ -123,6 +124,29 @@ class HFTag:
             self.color = color
         else:
             self.color = generate_random_color()
+
+@dataclass_json
+@dataclass
+class HFTagReference:
+    '''Schema object for HF Tags to be used in HF intents and HF examples
+
+    Validates the format of a tag used in intents and examples
+
+    These tags are added to HFIntents and HFExamples
+
+    Parameters
+    ----------
+    id:    str            unique id for tag
+    name:  str            name of tag that will be displayed in HF studio
+    '''
+    id: str
+    name: str
+
+    def __init__(self,
+                 id: str, # pylint: disable=redefined-builtin
+                 name: str):
+        self.id = id # pylint: disable=redefined-builtin
+        self.name = name
 
 @dataclass_json
 @dataclass
@@ -158,7 +182,11 @@ class HFTagFilter:
 class HFTagFilters:
     """
     HumaFirst Tag filters
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> master
     Sets and validates intent and utterance level tags
     """
     intent: HFTagFilter
@@ -222,20 +250,24 @@ class HFIntent:
      id:        str            unique id for intent
      name:      str            name of intent that will be displayed in HF studio
      metadata:  dict           a dictionary or HFMetadata object of string only key value pairs
-     tags:      list           a list of HFTag objects
+     tags:      list           a list of HFTagReference objects
      parent_intent_id: str, optional  a reference to the ID of the immediate parent if using hierarchy intents
      '''
     id: str
     name: str
     metadata: HFMetadata = field(default_factory=dict)
-    tags: List[HFTag] = field(default_factory=list)
+    tags: List[HFTagReference] = field(default_factory=list)
     parent_intent_id: Optional[str] = None
 
     def __init__(self,
                  id: str, # pylint: disable=redefined-builtin
                  name: str,
                  metadata: HFMetadata = None,
+<<<<<<< HEAD
                  tags: List[HFTag] = None,
+=======
+                 tags: List[HFTagReference] = None,
+>>>>>>> master
                  parent_intent_id: Optional[str] = None):
 
 
@@ -258,7 +290,7 @@ class HFContext:
     '''Schema object for HFContext
 
     Validates the format of a the Context object interelating multiple HFExamples (utterances)
-    within a document or conversation.  Th
+    within a document or conversation.
 
     Parameters
     ----------
@@ -275,6 +307,7 @@ class HFContext:
 
     def __init__(self,
                  context_id: Optional[str] = None,
+<<<<<<< HEAD
                  context_type: Optional[str] = None,
                  role: Optional[str] = None):
         self.context_id = context_id
@@ -290,6 +323,28 @@ class HFContext:
             else:
                 raise HFContextRoleException(
                     'Only "conversation" document with roles of "client" or "expert" are currently supported')
+=======
+                 type: Optional[str] = None, #pylint: disable=W0622:redefined-builtin
+                 role: Optional[str] = None):
+        self.context_id = context_id
+        if type and type != '':
+            if type in ['conversation',"utterance","training_phrase",'unknown']:
+                self.type = type
+                if role and role != '':
+                    if type == 'conversation':
+                        if role in ['expert', 'client']:
+                            self.role = role
+                        else:
+                            raise HFContextRoleException(
+                                'Only "client" or "expert" roles are currently supported with "converation" context type')
+                    else:
+                        raise HFContextRoleException(
+                            'Not expecting a role for context types except conversation'
+                        )
+            else:
+                raise HFContextTypeException(
+                    'Only "conversation","utterance","training_phrase" and "unknown" document types are currently supported')
+>>>>>>> master
 
 
 @dataclass_json
@@ -331,7 +386,7 @@ class HFExample:
                                    A list of HFintentRefs for intents, or a list of HFIntents
                                    or a list of strings containing intent ids
                                    May be empty list [] if so the utterance will be treated as unlabelled
-    tags:     list HFTags          A list of ids of intents for which this example text is an example of
+    tags:     list HFTagReference A list of ids of intents for which this example text is an example of
                                    May be empty list [] if so the utterance will be treated as unlabelled
                                    and appear int the data section
                                    If provided these utterance will be treated as labelled and appear in the
@@ -343,7 +398,7 @@ class HFExample:
     text: str
     created_at: str
     intents: List[HFIntentRef] = field(default_factory=list)
-    tags: List[HFTag] = field(default_factory=list)
+    tags: List[HFTagReference] = field(default_factory=list)
     metadata: HFMetadata = field(default_factory=dict)
     context: Optional[HFContext] = None
 
@@ -353,7 +408,11 @@ class HFExample:
             id: str, # pylint: disable=redefined-builtin
             created_at: Optional[datetime.datetime] = None,
             intents: Union[List[HFIntentRef],List[HFIntent],List[str]] = None,
+<<<<<<< HEAD
             tags: List[HFTag] = None,
+=======
+            tags: List[HFTagReference] = None,
+>>>>>>> master
             metadata: HFMetadata = None,
             context: Optional[HFContext] = None
         ):
@@ -373,9 +432,6 @@ class HFExample:
         self.id = id
         self.text = text
         self.intents = intents
-        self.tags = tags
-        self.metadata = metadata
-
         self.tags = tags
         self.metadata = metadata
         self.context = context
@@ -419,33 +475,42 @@ class HFWorkspace:
     intents_by_id: Dict[str, HFIntent]
     examples: Dict[str, HFExample]
     tags: Dict[str, HFTag]
+<<<<<<< HEAD
+=======
+    tag_reference: Dict[str, HFTagReference]
+>>>>>>> master
     delimiter: str
 
     def __init__(self):
         self.intents = {}
         self.intents_by_id = {}
         self.tags = {}
+        self.tag_reference = {}
         self.examples = {}
         self.delimiter = None
 
     def intent(self,
                name_or_hier: Union[str, List[str]],
                id: Optional[str] = None, # pylint: disable=redefined-builtin
+<<<<<<< HEAD
                tags: List[HFTag] = None,
+=======
+               tags: List[HFTagReference] = None,
+>>>>>>> master
                metadata: HFMetadata = None) -> HFIntent:
         '''Check whether the intent exists within the hierarchy provided, if it does return the intent object found
         If it does not, create it, along with all necessary parents that don't exist and return the new object
 
         Parameters
         ----------
-        name_or_hier: str | List[str]    The name of the intent if no hierachy or the top level of an intent hierarchy
-                                         i.e "billing"
-                                         Or a list of names of intents in a list in the order of their hierarchy
-                                         ["billing","issues","cannot_pay"]
-        id:           str,optional       If not present will be generated as a repeatable hash of the text
-        tags:         List[HFTags]       A list of tags placed on the intent and display in the tool
-        metadata:     dict | HFMetadata  A dict of string only key value pairs detailing information about the text
-                                         useful to an annotator in HF Studio
+        name_or_hier: str | List[str]       Name of the intent if no hierachy or the top level of an intent hierarchy
+                                            i.e "billing"
+                                            Or a list of names of intents in a list in the order of their hierarchy
+                                            ["billing","issues","cannot_pay"]
+        id:           str,optional          If not present will be generated as a repeatable hash of the text
+        tags:         List[HFTagReference]  A list of tags placed on the intent and display in the tool
+        metadata:     dict | HFMetadata     A dict of string only key value pairs detailing information about the text
+                                            useful to an annotator in HF Studio
         '''
         if tags is None:
             tags = []
@@ -458,10 +523,22 @@ class HFWorkspace:
 
         parent_intent_id = None
         last = None
-        for part in name_or_hier:
+        for i,part in enumerate(name_or_hier):
+
             if part == '':
                 break
-            if part not in self.intents:
+
+            if i == 0:
+                previous_parts = ""
+                full_intent_path = part
+            elif i == 1:
+                previous_parts = name_or_hier[0]
+                full_intent_path = "-".join([previous_parts,part])
+            else:
+                previous_parts = "-".join(name_or_hier[0:i])
+                full_intent_path = "-".join([previous_parts,part])
+
+            if  full_intent_path not in self.intents:
                 if not id:
                     genid = f'intent-{len(self.intents)}'
                 else:
@@ -477,20 +554,28 @@ class HFWorkspace:
                     metadata=metadata,
                     tags=tags,
                 )
-                self.intents[part] = intent
+                self.intents[full_intent_path] = intent
                 self.intents_by_id[genid] = intent
-            last = self.intents[part]
+            last = self.intents[full_intent_path]
             parent_intent_id = last.id
 
         return last
 
+<<<<<<< HEAD
     def tag_intent(self, intent_id, tag: HFTag):
+=======
+    def tag_intent(self, intent_id, tag: HFTagReference):
+>>>>>>> master
         """Sets the intent tags"""
         # get the intent here
         intent = self.intent_by_id(intent_id)
         assert isinstance(intent, HFIntent)
         for i,_ in enumerate(intent.tags):
+<<<<<<< HEAD
             assert isinstance(intent.tags[i], HFTag)
+=======
+            assert isinstance(intent.tags[i], HFTagReference)
+>>>>>>> master
             if intent.tags[i] == tag.name:
                 intent.tags[i] = tag
                 self.intents_by_id[intent_id] = intent
@@ -623,19 +708,36 @@ class HFWorkspace:
         '''
         return self.intents_by_id.get(id)
 
-    def tag(self, tag: str, color: Optional[str] = None):
+    def tag(self, tag: str, color: Optional[str] = None, is_tag_ref: bool = True):
         '''Check whether tag (i.e tag name) already exists, if it does return the tag object with that name
         If not create the tag object
         '''
         if tag not in self.tags:
+<<<<<<< HEAD
             self.tags[tag] = HFTag(f'tag-{len(self.tags)}', tag, color)
         return self.tags[tag]
 
+=======
+            tag_id = f'tag-{uuid.uuid4()}'
+            self.tags[tag] = HFTag(tag_id, tag, color)
+            self.tag_reference[tag] = HFTagReference(id = self.tags[tag].id,
+                                                     name = self.tags[tag].name)
+
+        if is_tag_ref:
+            return self.tag_reference[tag]
+        else:
+            return self.tags[tag]
+
+>>>>>>> master
     def example(self, text: str,
                 id: Optional[str] = None, # pylint: disable=redefined-builtin
                 created_at: Optional[datetime.datetime] = None,
                 intents: List[HFIntent] = None,
+<<<<<<< HEAD
                 tags: List[HFTag] = None,
+=======
+                tags: List[HFTagReference] = None,
+>>>>>>> master
                 metadata: HFMetadata = None,
                 context: Optional[HFContext] = None) -> HFExample:
         '''Create a new example based on passed properties, assigning an ID if necessary
@@ -720,8 +822,8 @@ class HFWorkspace:
 
         return workspace
 
-    def write_json(self, output: IO, jsonl=False, indent=2):
-        '''Write workspace object into HF format for uploading to studio
+    def get_hf_json(self) -> dict:
+        '''Returns workspace object into HF format
         '''
 
         sorted_examples = list(self.examples.values())
@@ -735,8 +837,22 @@ class HFWorkspace:
             workspace['tags'] = [tag.to_dict() for tag in self.tags.values()]
 
         if len(self.intents) > 0:
-            workspace['intents'] = [intent.to_dict()
-                                    for intent in self.intents.values()]
+            list_intents = []
+            for intent in self.intents.values():
+                intent = intent.to_dict()
+                # schema does not accept null parent id
+                if intent["parent_intent_id"] is None:
+                    del intent["parent_intent_id"]
+                list_intents.append(intent)
+            workspace['intents'] = list_intents
+
+        return workspace
+
+    def write_json(self, output: IO, jsonl=False, indent=2):
+        '''Write workspace object into HF format for uploading to studio
+        '''
+
+        workspace = self.get_hf_json()
 
         if jsonl:
             indent = None

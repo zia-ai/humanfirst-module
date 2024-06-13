@@ -9,6 +9,8 @@ Set of pytest humanfirst.objects.py tests
 import os
 import json
 from configparser import ConfigParser
+from datetime import datetime
+import uuid
 
 # third party imports
 import numpy
@@ -21,12 +23,62 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # CONSTANTS
 constants = ConfigParser()
-path_to_config_file = os.path.join(here,'..','setup.cfg')
+path_to_config_file = os.path.join(here,'..','humanfirst','config','setup.cfg')
 constants.read(path_to_config_file)
 
 # constants need type conversion from str to int
 TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
+
+def test_intent_hierarchy():
+    """test_intent_hierarchy"""
+
+    # read csv
+    path_to_file = os.path.join(here,'..','examples','intent_hierarchy_example.csv')
+    df = pandas.read_csv(path_to_file, sep=",")
+
+    # create a labelled workspace from dataframe
+    labelled = humanfirst.objects.HFWorkspace()
+    labelled.delimiter = "-"
+
+    for _,row in df.iterrows():
+        name_or_hier = str(row["intent"]).split(labelled.delimiter)
+        intent = labelled.intent(name_or_hier=name_or_hier)
+        example = humanfirst.objects.HFExample(
+            text=row["utterance"],
+            id=f'example-{uuid.uuid4()}',
+            created_at=datetime.now().isoformat(),
+            intents=[intent],
+            tags=[],
+            metadata={}
+        )
+        labelled.add_example(example)
+
+    actual_intent_names =  [
+        "intent1-sub_intent1-int",
+        "intent1-sub_intent1-float",
+        "intent1-sub_intent1-double",
+        "intent2-sub_intent1-int",
+        "intent2-sub_intent1-float",
+        "intent2-sub_intent1-double",
+        "sub_intent1-int",
+        "sub_intent1-float",
+        "sub_intent1-double"
+    ]
+
+    # get intent names from the workspace created
+    workspace_intent_names = []
+    for _,example in labelled.examples.items():
+        intent_id = example.intents[0].intent_id
+        intent_name = labelled.get_fully_qualified_intent_name(intent_id=intent_id)
+        workspace_intent_names.append(intent_name)
+    actual_intent_names = sorted(actual_intent_names)
+    workspace_intent_names = sorted(workspace_intent_names)
+
+    # if the if the intent hierarchy isn't matched then we wouldn't get the same fully qualified intent names
+    assert len(actual_intent_names) == len(workspace_intent_names)
+    assert actual_intent_names == workspace_intent_names
+
 
 def test_load_testdata():
     """test_load_testdata"""
@@ -69,6 +121,8 @@ def test_get_fully_qualified_intent_name():
     test_get_fully_qualified_intent_name
 
     Before running this test, set HF_USERNAME and HF_PASSWORD as environment variables to access TEST_NAMESPACE
+    
+    And also update TEST_NAMESPACE before running this test
     """
 
     hf_api = humanfirst.apis.HFAPI()
@@ -158,27 +212,37 @@ def test_metadata_intent():
     assert (
         labelled.intents['billing'].metadata['anotherkey'] == 'anothervalue')
     assert (
-        labelled.intents['billing_issues'].metadata['anotherkey'] == 'anothervalue')
+        labelled.intents['billing-billing_issues'].metadata['anotherkey'] == 'anothervalue')
     assert (
-        labelled.intents['payment_late'].metadata['anotherkey'] == 'anothervalue')
+        labelled.intents['billing-billing_issues-payment_late'].metadata['anotherkey'] == 'anothervalue')
 
 
 def test_tag_color_create():
     """test_tag_color_create"""
 
     labelled = humanfirst.objects.HFWorkspace()
-    tag = labelled.tag(tag='exclude')
+    tag = labelled.tag(tag='exclude', is_tag_ref=False)
     assert isinstance(tag, humanfirst.objects.HFTag)
     assert tag.color.startswith('#')
     assert len(tag.color) == 7
     old_color = tag.color
     new_color = '#ffffff'
     # if try to recreate, already exists tag doesn't change
-    tag = labelled.tag(tag='exclude', color=new_color)
+    tag = labelled.tag(tag='exclude', color=new_color, is_tag_ref=False)
     assert tag.color == old_color
     # creating new works
-    tag = labelled.tag(tag='exclude-white', color=new_color)
+    tag = labelled.tag(tag='exclude-white', color=new_color, is_tag_ref=False)
     assert tag.color == new_color
+
+
+def test_tag_reference():
+    """test_tag_reference"""
+
+    labelled = humanfirst.objects.HFWorkspace()
+    tag = labelled.tag(tag='exclude')
+    assert isinstance(tag, humanfirst.objects.HFTagReference)
+    # check if color is not present in the HFTagReference
+    assert "color" not in list(tag.__dict__.keys())
 
 
 def test_write_csv():
@@ -246,6 +310,37 @@ def test_read_json():
     intent_index = workspace.get_intent_index("-")
     assert list(intent_index.values()) == [
             "GROUP1", "GROUP1-GROUP1_EN_INJURED_AT_THE_ZOO", "GROUP2", "GROUP2-GROUP2_DREADFULLY_INJURED"]
+
+def test_write_json():
+    """test_write_json"""
+
+    input_file = "./examples/json_model_example_output.json"
+    workspace = humanfirst.objects.HFWorkspace()
+    json_input_1 = json.loads(open(input_file, 'r', encoding='utf8').read())
+    workspace = workspace.from_json(json_input_1,delimiter=None)
+
+    output_file = input_file.replace(".json","_123.json")
+    file_out = open(output_file, 'w', encoding='utf8')
+    workspace.write_json(file_out)
+    file_out.close()
+
+    json_input_2 = json.loads(open(output_file, 'r', encoding='utf8').read())
+
+    df_example_1 = pandas.json_normalize(data=json_input_1["examples"], sep="-")
+    df_example_2 = pandas.json_normalize(data=json_input_2["examples"], sep="-")
+    df_intent_1 = pandas.json_normalize(data=json_input_1["intents"], sep="-")
+    df_intent_2 = pandas.json_normalize(data=json_input_2["intents"], sep="-")
+    df_tag_1 = pandas.json_normalize(data=json_input_1["tags"], sep="-")
+    df_tag_2 = pandas.json_normalize(data=json_input_2["tags"], sep="-")
+
+    assert df_example_1.equals(df_example_2)
+    assert df_intent_1.equals(df_intent_2)
+    assert df_tag_1.equals(df_tag_2)
+
+    # Check if file exists
+    if os.path.exists(output_file):
+        # Delete the file
+        os.remove(output_file)
 
 
 def test_tag_filter_validation():

@@ -14,11 +14,19 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
+<<<<<<< HEAD
 VERSION = '0.0.4'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
         "Development Status :: 3 - Alpha",
+=======
+VERSION = '1.1.2'
+DESCRIPTION = 'HumanFirst Package Module'
+
+CLASSIFIERS = [
+        "Development Status :: 5 - Production/Stable",
+>>>>>>> master
         "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ]
