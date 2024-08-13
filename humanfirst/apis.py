@@ -154,7 +154,7 @@ class HFAPI:
         """Validate the response from the API and provide consistent aerror handling"""
         if payload is None:
             payload = {}
-        if response.status_code != 200:
+        if response.status_code != 200 and response.status_code != 201:
             raise HFAPIResponseValidationException(
                 url=url, payload=payload, response=response)
 
@@ -923,7 +923,7 @@ class HFAPI:
     #         return self._get_headers()
 
     # *****************************************************************************************************************
-    # Conversation sets and Querying Processed Conversation set data
+    # Conversation sets
     # *****************************************************************************************************************
 
     def get_conversation_set_list(self, namespace: str) -> tuple:
@@ -1019,6 +1019,25 @@ class HFAPI:
 
         return conversation_source_id
 
+    # Not currently exposed - requested 2024-08-13
+    # def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
+    #     """Deletes a conversation_set"""
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "conversation_set":{
+    #             "name": convoset_name,
+    #             "description": ""
+    #         }
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convo_set_id}"
+    #     response = requests.request(
+    #         "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response=response, url=url)
+
     def get_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Gets conversation set configuration"""
 
@@ -1057,6 +1076,58 @@ class HFAPI:
         response = requests.request(
             "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response=response, url=url)
+
+    # *****************************************************************************************************************
+    # Conversation Source - including add files
+    # *****************************************************************************************************************
+
+    def get_conversation_source(self, namespace: str, conversation_source_id: str) -> dict:
+        '''Download conversation set'''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        # /v1alpha1/files/{namespace}/{conversation_source_id}/export
+        url = f'https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}/export'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_json_file_to_conversation_source(self, namespace: str, 
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str) -> dict:
+        '''Upload a JSON file to a conversation source'''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}"
+        
+        # file_in = open(fqfp,mode="r",encoding="utf8")
+        # json.load(file_in)
+        # file_in.close()
+        upload_file = open(fqfp, 'rb')
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_HUMANFIRST_JSON',
+            'file': (upload_name, upload_file, 'application/json')}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+        upload_file.close()
+        return self._validate_response(response, url, "playbooks")
+    
+    # *****************************************************************************************************************
+    # Querying Processed Conversation set data
+    # *****************************************************************************************************************
 
     def query_conversation_set(
             self,
@@ -1235,6 +1306,9 @@ class HFAPI:
             return downloaded_json.text
         else:
             raise RuntimeError(f'Unrecognised download format: {download_format}')
+
+
+    
 
     # *****************************************************************************************************************
     # Integrations

@@ -29,6 +29,8 @@ constants.read(path_to_config_file)
 # constants need type conversion from str to int
 TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
+TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
+
 
 def test_intent_hierarchy():
     """test_intent_hierarchy"""
@@ -392,3 +394,37 @@ def test_tag_filters():
             "intent", "both", ["test-regression", "test-analyst"])
         assert str(
             e.value) == "Accepted types are ['incldue', 'exclude'] level was: both"
+
+def test_conversation_set_upload():
+    """Upload some test data to convos"""
+    
+    hf_api = humanfirst.apis.HFAPI()
+
+    # check if previously created
+    convo_sets = [] # hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
+    assert isinstance(convo_sets,list)
+    found = 1
+    for cs in convo_sets:
+        if cs["name"] == TEST_CONVOSET:
+            found = found + 1
+    if found == 0:
+        convo_set = hf_api.create_conversation_set(namespace=TEST_NAMESPACE,
+                                                    convoset_name=TEST_CONVOSET)
+        print('Created convoset')
+        print(convo_set)
+        assert isinstance(convo_set,str)
+        assert convo_set.startswith('convosrc-')
+    elif found == 1:
+        print('Convoset exists for test')
+        # Delete not exposed yet, manually delete if want to test this set again.
+    else:
+        print(f'Found {found} convo sets please clean up.')
+
+    # TODO: remove
+    convo_set = "convsrc-ZHSGZFWINRGZZGB5LT4PEHRW"
+    upload_res = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
+                                                                conversation_source_id=convo_set,
+                                                                upload_name="abcd_108_test",
+                                                                fqfp="./examples/abcd_2022_05_convo_108.json"
+                                                                )
+    print(upload_res)

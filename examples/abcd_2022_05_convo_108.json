@@ -1,0 +1,383 @@
+{
+    "$schema": "https://docs.humanfirst.ai/hf-json-schema.json",
+    "examples": [
+        {
+            "id": "example-108-0",
+            "text": "No, that is all. Thanks for your help.",
+            "created_at": "2022-05-01T14:26:02Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "000",
+                "first_customer_utt": "TRUE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-1",
+            "text": "Hello, how can I help you today?",
+            "created_at": "2022-05-01T14:26:19Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "001",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-2",
+            "text": "Hello! Would you be able to advise me on how I can wash the Tommy Hilfiger jacket?",
+            "created_at": "2022-05-01T14:26:36Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "002",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "TRUE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-3",
+            "text": "You can wash it with your other clothing in a washing machine.",
+            "created_at": "2022-05-01T14:26:53Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "003",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-4",
+            "text": "Great, thank you. Can it be put in the dryer?",
+            "created_at": "2022-05-01T14:27:10Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "004",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-5",
+            "text": "Dry in low heat to avoid shrinking however.",
+            "created_at": "2022-05-01T14:27:27Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "005",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-6",
+            "text": "Thank you! I am thinking of purchasing it. Is there anything else I should know about it?",
+            "created_at": "2022-05-01T14:27:44Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "006",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-7",
+            "text": "What additional information are you looking for?",
+            "created_at": "2022-05-01T14:28:01Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "007",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-8",
+            "text": "Are other customers happy with it?",
+            "created_at": "2022-05-01T14:28:18Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "008",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-9",
+            "text": "If anyone is unhappy there are different return policies based on your membership level.",
+            "created_at": "2022-05-01T14:28:35Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "009",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-10",
+            "text": "Great. Thank you!",
+            "created_at": "2022-05-01T14:28:52Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "010",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-108-11",
+            "text": "Can I help you with anything else today?",
+            "created_at": "2022-05-01T14:29:09Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "011",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-12",
+            "text": "Have a wonderful day!",
+            "created_at": "2022-05-01T14:29:26Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "012",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-108-13",
+            "text": "You too!",
+            "created_at": "2022-05-01T14:29:43Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "108",
+                "conversation_turn": "013",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "TRUE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "jacksonville",
+                "scenario_flow": "single_item_query",
+                "scenario_subflow": "jacket_how_2",
+                "scenario_product_names": "tommy_hilfiger jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "Yes"
+            },
+            "context": {
+                "context_id": "108",
+                "type": "conversation",
+                "role": "client"
+            }
+        }
+    ]
+}
