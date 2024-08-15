@@ -16,7 +16,15 @@ import uuid
 import numpy
 import pandas
 import pytest
+from dotenv import load_dotenv, find_dotenv
 import humanfirst
+
+class HFNamespaceNotAvailableException(Exception):
+    """When username/password not provided by the user"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -26,8 +34,14 @@ constants = ConfigParser()
 path_to_config_file = os.path.join(here,'..','humanfirst','config','setup.cfg')
 constants.read(path_to_config_file)
 
-# constants need type conversion from str to int
-TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
+dotenv_path = find_dotenv(usecwd=True)
+# load the environment variables from the .env file if present
+load_dotenv(dotenv_path=dotenv_path)
+
+TEST_NAMESPACE = os.environ.get("HF_TEST_NAMESPACE")
+if TEST_NAMESPACE is None:
+    raise HFNamespaceNotAvailableException("HF_TEST_NAMESPACE is not set as environment variable")
+
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 
 def test_intent_hierarchy():
