@@ -44,6 +44,45 @@ if TEST_NAMESPACE is None:
 
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 
+
+def _create_playbook(hf_api: humanfirst.apis,
+                     namespace: str,
+                     playbook_name:  str):
+    """creates playbook"""
+
+    create_pb_res = hf_api.create_playbook(namespace=namespace,
+                                           playbook_name=playbook_name)
+
+    playbook_id = create_pb_res["etcdId"]
+
+    # check if the playbook is available in the workspace
+    list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    valid_playbook_id = False
+    for i,_ in enumerate(list_pb):
+        if playbook_id == list_pb[i]["etcdId"]:
+            valid_playbook_id = True
+    assert valid_playbook_id is True
+
+    return playbook_id
+
+
+def _del_playbook(hf_api: humanfirst.apis,
+                  namespace: str,
+                  playbook_id:  str):
+    """Delete Playbook"""
+
+    # delete the workspace and check if the workspace is deleted
+    hf_api.delete_playbook(namespace=namespace, playbook_id=playbook_id, hard_delete=True)
+
+    # check if the provided playbook is removed from the workspace
+    list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    valid_playbook_id = False
+    for i,_ in enumerate(list_pb):
+        if playbook_id == list_pb[i]["etcdId"]:
+            valid_playbook_id = True
+    assert valid_playbook_id is False
+
+
 def test_intent_hierarchy():
     """test_intent_hierarchy"""
 
@@ -129,6 +168,63 @@ def test_intent_hierarchy_numbers():
     assert intent.name == 'payment_late'
     assert intent.parent_intent_id == 'intent-1'
     assert len(labelled.intents) == 3
+
+def test_tags():
+    """Test create, delete and list tags"""
+
+    hf_api = humanfirst.apis.HFAPI()
+
+    playbook_name = "Test tags"
+
+    playbook_id = _create_playbook(hf_api,
+                                   namespace=TEST_NAMESPACE,
+                                   playbook_name=playbook_name)
+
+    try:
+        tag_id = str(uuid.uuid4())
+        tag_name = "test_tag"
+        tag_color = "#a69890"
+
+        # test create tag
+        c_tag = hf_api.create_tag(namespace=TEST_NAMESPACE,
+                                playbook=playbook_id,
+                                tag_id=tag_id,
+                                tag_name=tag_name,
+                                tag_color=tag_color)
+
+        assert c_tag["tag"]["id"] == tag_id
+        assert c_tag["tag"]["name"] == tag_name
+        assert c_tag["tag"]["color"] == tag_color
+
+        # test get tags
+        list_tags = hf_api.get_tags(namespace=TEST_NAMESPACE,playbook=playbook_id)
+
+        assert list_tags[0]["id"] == tag_id
+        assert list_tags[0]["name"] == tag_name
+        assert list_tags[0]["color"] == tag_color
+
+        # test delete tags
+        del_tag = hf_api.delete_tag(namespace=TEST_NAMESPACE,
+                                    playbook=playbook_id,
+                                    tag_id=tag_id)
+
+        assert del_tag == dict()
+
+        list_tags = hf_api.get_tags(namespace=TEST_NAMESPACE,playbook=playbook_id)
+
+        assert list_tags == dict()
+
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+    except RuntimeError as e:
+        print(e)
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+
 
 def test_get_fully_qualified_intent_name():
     """
