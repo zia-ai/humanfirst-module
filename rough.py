@@ -49,7 +49,7 @@ def test_tags():
 
     hf_api = humanfirst.apis.HFAPI()
 
-    playbook_name = "Test tags"
+    playbook_name = "Test get_playbook_info"
 
     create_pb_res = hf_api.create_playbook(namespace=TEST_NAMESPACE,
                                            playbook_name=playbook_name)
@@ -65,38 +65,10 @@ def test_tags():
     assert valid_playbook_id is True
 
     try:
-        tag_id = "12345"
-        tag_name = "test_tag"
-        tag_color = "#a69890"
+        pb_info = hf_api.get_playbook_info(namespace=TEST_NAMESPACE,
+                                 playbook=playbook_id)
 
-        # test create tag
-        c_tag = hf_api.create_tag(namespace=TEST_NAMESPACE,
-                                playbook=playbook_id,
-                                tag_id=tag_id,
-                                tag_name=tag_name,
-                                tag_color=tag_color)
-
-        assert c_tag["tag"]["id"] == tag_id
-        assert c_tag["tag"]["name"] == tag_name
-        assert c_tag["tag"]["color"] == tag_color
-
-        # test get tags
-        list_tags = hf_api.get_tags(namespace=TEST_NAMESPACE,playbook=playbook_id)
-
-        assert list_tags[0]["id"] == tag_id
-        assert list_tags[0]["name"] == tag_name
-        assert list_tags[0]["color"] == tag_color
-
-        # test delete tags
-        del_tag = hf_api.delete_tag(namespace=TEST_NAMESPACE,
-                                    playbook=playbook_id,
-                                    tag_id=tag_id)
-
-        assert del_tag == dict()
-
-        list_tags = hf_api.get_tags(namespace=TEST_NAMESPACE,playbook=playbook_id)
-
-        assert list_tags == dict()
+        print(json.dumps(pb_info,indent=2))
 
         # delete the workspace and check if the workspace is deleted
         hf_api.delete_playbook(namespace=TEST_NAMESPACE, playbook_id=playbook_id, hard_delete=True)

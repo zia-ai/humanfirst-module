@@ -169,6 +169,39 @@ def test_intent_hierarchy_numbers():
     assert intent.parent_intent_id == 'intent-1'
     assert len(labelled.intents) == 3
 
+
+def test_get_playbook_info():
+    """Test get playbook info"""
+
+    hf_api = humanfirst.apis.HFAPI()
+
+    playbook_name = "Test tags"
+
+    playbook_id = _create_playbook(hf_api,
+                                   namespace=TEST_NAMESPACE,
+                                   playbook_name=playbook_name)
+
+    try:
+        pb_info = hf_api.get_playbook_info(namespace=TEST_NAMESPACE,
+                                 playbook=playbook_id)
+
+        assert pb_info["namespace"] == TEST_NAMESPACE
+        assert pb_info["id"] == playbook_id
+        assert pb_info["name"] == playbook_name
+
+        # TODO: test for pb_info schema
+
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+    except RuntimeError as e:
+        print(e)
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+
 def test_tags():
     """Test create, delete and list tags"""
 
