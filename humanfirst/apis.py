@@ -1034,6 +1034,19 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response=response, url=url)
 
+    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str) -> dict:
+        """Get the list of conversation files within a convo set."""
+
+        headers = self._get_headers()
+
+        payload = {
+            "namespace":namespace,
+            "conversation_set_id":conversation_set_src_id
+        }
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}"
+        response = requests.request(
+            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+        return self._validate_response(response=response,url=url)
 
     def update_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Update conversation set configuration"""
