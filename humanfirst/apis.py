@@ -1132,6 +1132,7 @@ class HFAPI:
             pipeline_id: str = "",
             pipeline_step_id: str = "",
             exists_filter_key_name: str = "",
+            metadata_predicate: list[dict] = [],
             download_format: int = 1, # 1 = JSON 2 = CSV
             prompt_id: str = "",
             generation_run_id: str = "",
@@ -1149,6 +1150,16 @@ class HFAPI:
         SOURCE_KIND_UNSPECIFIED = 0;
         SOURCE_KIND_UNLABELED = 1;
         SOURCE_KIND_GENERATED = 2;
+
+        metadata_predicate
+        [
+            {
+                "key": "INSERT_KEY_NAME",
+                "operator": "EQUALS|NOT_EQUALS|CONTAINS|NOT_CONTAINS|KEY_EXISTS|KEY_NOT_EXISTS|KEY_MATCHES|ANY",
+                "value": "VALUE|''"
+            },
+            #other filters..
+        ]
         '''
 
         # operator 0 EQUALS filter types
@@ -1172,7 +1183,7 @@ class HFAPI:
                     "operator": 0, # EQUALS
                     "value": metadata_values[i]
                 })
-        # operator 4 exists
+        # operator 4 exists -- older implementation
         if exists_filter_key_name != "":
             exists_filter = {
                 "key": exists_filter_key_name,
@@ -1181,6 +1192,46 @@ class HFAPI:
                 "value": ""
             }
             metadata_filters.append(exists_filter)
+
+        #Condition dict for filtering
+        condition_dict = {
+                "EQUALS": 0,
+                "NOT_EQUALS": 1,
+                "CONTAINS": 2,
+                "NOT_CONTAINS": 3,
+                "KEY_EXISTS": 4,
+                "KEY_NOT_EXISTS": 5,
+                "KEY_MATCHES": 6,
+                "ANY": 7
+        }
+
+        #Map the metadata filters passed in via object
+        if len(metadata_predicate) > 0:
+            for index, metadata_field in enumerate(metadata_predicate):
+
+                try:
+                    #Find matching numerical operator
+                    numerical_operator = condition_dict[metadata_field["operator"]]
+                except Exception as e:
+                    raise ValueError(f"Invalid operator '{metadata_field['operator']}'. Please choose from: "
+                            "EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS, "
+                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY")
+
+                #Support for OR query
+                if metadata_field.get("optional"):
+                    metadata_filters.append({
+                        "key": metadata_field['key'],
+                        "operator": numerical_operator,
+                        "value": metadata_field['value'],
+                        "optional": metadata_field['optional'],
+                    })
+                else:
+                    metadata_filters.append({
+                        "key": metadata_field['key'],
+                        "operator": numerical_operator,
+                        "value": metadata_field['value']
+                    })
+
 
         if order_direction_asc:
             order_direction = 1
