@@ -1048,6 +1048,23 @@ class HFAPI:
             "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
         return self._validate_response(response=response,url=url)
 
+    def delete_conversation_file(self, namespace:str,conversation_set_src_id: str,file_name:str):
+        """Deletes a specific file within a convo set."""
+
+        headers = self._get_headers()
+        print(headers)
+        payload = {
+            "namespace":namespace,
+            "filename": file_name,
+            "conversation_set_id":conversation_set_src_id
+        }
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}/{file_name}"
+
+
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response=response,url=url)
+
     def update_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Update conversation set configuration"""
 
