@@ -1071,7 +1071,7 @@ class HFAPI:
         """Deletes a specific file within a convo set."""
 
         headers = self._get_headers()
-        print(headers)
+
         payload = {
             "namespace":namespace,
             "filename": file_name,
@@ -1125,7 +1125,7 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "playbooks")
 
-    def upload_json_file_to_conversation_source(self, namespace: str, 
+    def upload_json_file_to_conversation_source(self, namespace: str,
                                                 conversation_source_id: str,
                                                 upload_name: str,
                                                 fqfp: str) -> dict:
@@ -1137,7 +1137,7 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}"
-        
+
         # file_in = open(fqfp,mode="r",encoding="utf8")
         # json.load(file_in)
         # file_in.close()
@@ -1154,7 +1154,7 @@ class HFAPI:
             "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
         upload_file.close()
         return self._validate_response(response, url, "playbooks")
-    
+
     # *****************************************************************************************************************
     # Querying Processed Conversation set data
     # *****************************************************************************************************************
@@ -1389,7 +1389,7 @@ class HFAPI:
             raise RuntimeError(f'Unrecognised download format: {download_format}')
 
 
-    
+
 
     # *****************************************************************************************************************
     # Integrations
