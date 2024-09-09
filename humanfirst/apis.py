@@ -1065,7 +1065,7 @@ class HFAPI:
         url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}"
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
-        return self._validate_response(response=response,url=url)
+        return self._validate_response(response=response,url=url,field="files")
 
     def delete_conversation_file(self, namespace:str,conversation_set_src_id: str,file_name:str):
         """Deletes a specific file within a convo set."""
