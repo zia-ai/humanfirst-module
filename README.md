@@ -15,6 +15,11 @@ HelloWorld
 Before using `pytest` command 
 
 ## Build packages
+
+### Wipe your build dir first to be sure
+`rm -rf ./build ./dist`
+
+### Then build
 `python setup.py sdist bdist_wheel`
 
 ## Test packages before uploading
@@ -27,6 +32,9 @@ Enable 2 factor authentication and generate API token using Account settings
 ### Set TestPYPI password using keyring
 `keyring set system __token__`
 
+It'll prompt for a password - give it the API key
+Theoretically this stops you having to put in your username and password each time.
+
 Then Enter your TestPYPI API token
 
 ### Publish the package to TestPYPI
@@ -37,7 +45,7 @@ Username: `__token__`
 Password: `API token`
 
 ### Using TestPyPI with pip
-`pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ your-package`
+`pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ <your-package>`
 
 ## Upload packages to PYPI
 Register in PYPI - https://pypi.org/account/register/
@@ -67,3 +75,12 @@ Password: `API token`
 ## To install humanfirst package locally into humanfirst-module using the dist
 
 `pip install dist/humanfirst-<version number>.tar.gz --no-cache`
+
+or from academy example change the version number and the path...
+
+`pip install ../humanfirst-module/dist/humanfirst-1.1.3.tar.gz --no-cache`
+
+### CHECKS
+
+make sure any last minute build changes committed!
+pytest in academy
