@@ -127,7 +127,7 @@ test)
         start_aio
     fi
 
-    # cd src && npx playwright test "${@:2}"
+    pytest --cov ./humanfirst/ --cov-report term
 
     ;;
 
