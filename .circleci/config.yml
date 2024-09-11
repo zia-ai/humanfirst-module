@@ -35,6 +35,7 @@ jobs:
             sudo apt update
             sudo apt install -y docker 
             sudo apt-get install net-tools -y
+            mkdir -p logs
       - gcp-cli/setup:
           use_oidc: true
           # --quiet mitigates "gcloud component install waiting for user input"

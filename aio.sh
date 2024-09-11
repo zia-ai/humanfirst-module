@@ -29,12 +29,12 @@ ENV=${ENV:-"aio"}
 # if set, don't mount ~/.config/gcloud, but use service account specified in this file
 GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-""}
 
-if [ -f "src/logs/env.log" ]; then
+if [ -f "logs/env.log" ]; then
     echo "removing previous env log"
-    rm src/logs/env.log
+    rm logs/env.log
 fi
 
-set | grep "^AIO_.*TAG" >> src/logs/env.log
+set | grep "^AIO_.*TAG" >> logs/env.log
 
 function cleanup {
     if [[ $AIO_STARTED -eq 1 ]]; then
@@ -78,13 +78,13 @@ function start_aio() {
         "gcr.io/trial-184203/backend-aio:$AIO_TAG" \
         "${AIO_ARGS[@]}"
 
-    if [ -f "src/logs/aio.log" ]; then
+    if [ -f "logs/aio.log" ]; then
         echo "removing previous aio log"
-        rm src/logs/aio.log
+        rm logs/aio.log
     fi
 
     # send aio logs to file in case of failure
-    docker logs -f aio >src/logs/aio.log 2>&1 &
+    docker logs -f aio >logs/aio.log 2>&1 &
 
     AIO_STARTED=1
 }
@@ -132,6 +132,7 @@ test)
     ;;
 
 start-aio)
+
     start_aio
     echo "Press any key to stop AIO..."
     read
