@@ -3,10 +3,23 @@ version: 2.1
 # orbs:
 #   python: circleci/python@2.1.1
 
+orbs:
+  slack: circleci/slack@4.12.5
+  gcp-cli: circleci/gcp-cli@3.1.1
+
 executors:
   ubuntu-executor:
     machine:
       image: default
+
+commands:
+  gcloud-sdk:
+    description: 'Install and configure gcoud sdk'
+    steps:
+      - run: |
+          gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+          gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+          gcloud --quiet auth configure-docker
 
 jobs:
   build-and-test:
@@ -16,9 +29,21 @@ jobs:
 
     steps:
       - checkout
+      - run: 
+          name: dependencies
+          command: |
+            sudo apt update
+            sudo apt install -y docker npm wget
+            sudo apt-get install net-tools -y
+      - gcp-cli/setup:
+          use_oidc: true
+          # --quiet mitigates "gcloud component install waiting for user input"
+          # https://github.com/CircleCI-Public/gcp-cli-orb/issues/65
+          components: docker-credential-gcr kubectl --quiet
+      - gcloud-sdk
       - run:
           name: Start AIO container
-          command: ./aio.sh start
+          command: ./aio.sh start-aio
       # - python/install-packages:
       #     pkg-manager: pip
       #     # app-dir: ~/project/package-directory/  # If your requirements.txt isn't in the root directory.
