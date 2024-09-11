@@ -45,7 +45,7 @@ jobs:
           pkg-manager: pip
       - run:
           name: Start AIO container and run tests
-          command: ./aio.sh test
+          command: AIO_START=1 ./aio.sh test
 
 workflows:
   test-aio: 
