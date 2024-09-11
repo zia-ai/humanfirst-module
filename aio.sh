@@ -122,7 +122,7 @@ function validate_test_params() {
 COMMAND=${1:-test}
 case $COMMAND in
 test)
-    validate_test_params
+    # validate_test_params
     if [[ $AIO_START -eq 1 ]]; then
         start_aio
     fi
