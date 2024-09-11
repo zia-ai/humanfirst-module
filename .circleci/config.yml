@@ -22,9 +22,6 @@ commands:
 jobs:
   build-and-test:
     executor: ubuntu-executor
-    # docker:
-    #   - image: cimg/python:3.12
-
     steps:
       - checkout
       - run: 
@@ -36,8 +33,6 @@ jobs:
             mkdir -p logs
       - gcp-cli/setup:
           use_oidc: true
-          # --quiet mitigates "gcloud component install waiting for user input"
-          # https://github.com/CircleCI-Public/gcp-cli-orb/issues/65
           components: docker-credential-gcr kubectl --quiet
       - gcloud-sdk
 
