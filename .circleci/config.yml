@@ -33,7 +33,7 @@ jobs:
           name: dependencies
           command: |
             sudo apt update
-            sudo apt install -y docker npm wget
+            sudo apt install -y docker 
             sudo apt-get install net-tools -y
       - gcp-cli/setup:
           use_oidc: true
@@ -56,4 +56,6 @@ jobs:
 workflows:
   test-aio: 
     jobs:
-      - build-and-test
+      - build-and-test:
+          context:
+            - org-global
