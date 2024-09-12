@@ -1,0 +1,50 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@4.12.5
+  gcp-cli: circleci/gcp-cli@3.1.1
+  python: circleci/python@2.1.1
+
+executors:
+  ubuntu-executor:
+    machine:
+      image: default
+
+commands:
+  gcloud-sdk:
+    description: 'Install and configure gcoud sdk'
+    steps:
+      - run: |
+          gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+          gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+          gcloud --quiet auth configure-docker
+
+jobs:
+  build-and-test:
+    executor: ubuntu-executor
+    steps:
+      - checkout
+      - run: 
+          name: dependencies
+          command: |
+            sudo apt update
+            sudo apt install -y docker 
+            sudo apt-get install net-tools -y
+            mkdir -p logs
+      - gcp-cli/setup:
+          use_oidc: true
+          components: docker-credential-gcr kubectl --quiet
+      - gcloud-sdk
+
+      - python/install-packages:
+          pkg-manager: pip
+      - run:
+          name: Start AIO container and run tests
+          command: AIO_START=1 ./aio.sh test
+
+workflows:
+  test-aio: 
+    jobs:
+      - build-and-test:
+          context:
+            - org-global
