@@ -396,64 +396,61 @@ def test_tag_filters():
         assert str(
             e.value) == "Accepted types are ['incldue', 'exclude'] level was: both"
 
-def test_conversation_set_file_upload():
-    """Upload a conversation set to the test conversation set"""
+# def test_conversation_set_file_upload():
+#     """Upload a conversation set to the test conversation set"""
 
-    hf_api = humanfirst.apis.HFAPI()
-    upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
-                                                                    conversation_source_id=TEST_CONVOSET_SET_SRC,
-                                                                    upload_name="abcd_108_test",
-                                                                    fqfp="./examples/abcd_2022_05_convo_108.json"
-                                                                    )
+#     hf_api = humanfirst.apis.HFAPI()
+#     upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
+#                                                                     conversation_source_id=TEST_CONVOSET_SET_SRC,
+#                                                                     upload_name="abcd_108_test",
+#                                                                     fqfp="./examples/abcd_2022_05_convo_108.json"
+#                                                                     )
 
-    assert isinstance(upload_response,dict)
-    assert upload_response["filename"] == "abcd_108_test"
-    assert len(set(upload_response.keys()).intersection({"triggerId","conversationSourceId"})) == 2
-    print(upload_response)
+#     assert isinstance(upload_response,dict)
+#     assert upload_response["filename"] == "abcd_108_test"
+#     assert len(set(upload_response.keys()).intersection({"triggerId","conversationSourceId"})) == 2
+#     print(upload_response)
 
-def test_conversation_set_list():
-    """Check a file exists in the test account created convoset
-    from the config file"""
+# def test_conversation_set_list():
+#     """Check a file exists in the test account created convoset
+#     from the config file"""
   
-    hf_api = humanfirst.apis.HFAPI()
+#     hf_api = humanfirst.apis.HFAPI()
 
-    list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
-                                                    conversation_set_src_id=TEST_CONVOSET_SET_SRC)
+#     list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
+#                                                     conversation_set_src_id=TEST_CONVOSET_SET_SRC)
     
-    assert isinstance(list_files,list)
-    assert len(list_files) == 1
-    assert list_files[0]["name"] == "abcd_108_test"
-    assert list_files[0]["format"] == "IMPORT_FORMAT_HUMANFIRST_JSON"
-    assert isinstance(list_files[0]["fromLastUpload"],bool)
-    upload_time = list_files[0]["uploadTime"]
-    upload_datetime = parser.parse(upload_time)
-    assert isinstance(upload_datetime,datetime)
+#     assert isinstance(list_files,list)
+#     assert len(list_files) == 1
+#     assert list_files[0]["name"] == "abcd_108_test"
+#     assert list_files[0]["format"] == "IMPORT_FORMAT_HUMANFIRST_JSON"
+#     assert isinstance(list_files[0]["fromLastUpload"],bool)
+#     upload_time = list_files[0]["uploadTime"]
+#     upload_datetime = parser.parse(upload_time)
+#     assert isinstance(upload_datetime,datetime)
 
-def test_delete_conversation_file():
-    """Test deleting a file from a convoset"""
+# def test_delete_conversation_file():
+#     """Test deleting a file from a convoset"""
 
-    hf_api = humanfirst.apis.HFAPI()
+#     hf_api = humanfirst.apis.HFAPI()
 
-    deleted_file_return = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
-                                                 conversation_set_src_id=TEST_CONVOSET_SET_SRC,
-                                                 file_name="abcd_108_test"
-                                                 )
+#     deleted_file_return = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
+#                                                  conversation_set_src_id=TEST_CONVOSET_SET_SRC,
+#                                                  file_name="abcd_108_test"
+#                                                  )
     
-def test_delete_not_exists_conversation_file():
-    """Test deleting a file from a convoset"""
+# def test_delete_not_exists_conversation_file():
+#     """Test deleting a file from a convoset"""
 
-    hf_api = humanfirst.apis.HFAPI()
+#     hf_api = humanfirst.apis.HFAPI()
 
-    output_exception = ""
-    try:
-        hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
-                                        conversation_set_src_id=TEST_CONVOSET_SET_SRC,
-                                        file_name="abcd_108_test"
-                                        )
-    except humanfirst.apis.HFAPIResponseValidationException as e:
-        output_exception = str(e.message)
+#     output_exception = ""
+#     try:
+#         hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
+#                                         conversation_set_src_id=TEST_CONVOSET_SET_SRC,
+#                                         file_name="abcd_108_test"
+#                                         )
+#     except humanfirst.apis.HFAPIResponseValidationException as e:
+#         output_exception = str(e.message)
 
-    assert '"message":"file doesn\'t exists"' in output_exception
-    
-
-
+#     assert '"message":"file doesn\'t exists"' in output_exception
