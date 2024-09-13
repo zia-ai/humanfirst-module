@@ -14,7 +14,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '1.1.2'
+VERSION = '1.1.3'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
@@ -52,7 +52,7 @@ setup(
     python_requires=">=3.8",
     extras_require={
         "dev": [
-            "twine==4.0.2",
+            "twine==5.1.1",
             "wheel==0.41.2",
             "keyring",
             "keyrings.alt",

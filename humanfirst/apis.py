@@ -154,7 +154,7 @@ class HFAPI:
         """Validate the response from the API and provide consistent aerror handling"""
         if payload is None:
             payload = {}
-        if response.status_code != 200:
+        if response.status_code != 200 and response.status_code != 201:
             raise HFAPIResponseValidationException(
                 url=url, payload=payload, response=response)
 
@@ -923,7 +923,7 @@ class HFAPI:
     #         return self._get_headers()
 
     # *****************************************************************************************************************
-    # Conversation sets and Querying Processed Conversation set data
+    # Conversation sets
     # *****************************************************************************************************************
 
     def get_conversation_set_list(self, namespace: str) -> tuple:
@@ -1019,6 +1019,25 @@ class HFAPI:
 
         return conversation_source_id
 
+    # Not currently exposed - requested 2024-08-13
+    # def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
+    #     """Deletes a conversation_set"""
+
+    #     payload = {
+    #         "namespace": namespace,
+    #         "conversation_set":{
+    #             "name": convoset_name,
+    #             "description": ""
+    #         }
+    #     }
+
+    #     headers = self._get_headers()
+
+    #     url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convo_set_id}"
+    #     response = requests.request(
+    #         "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+    #     return self._validate_response(response=response, url=url)
+
     def get_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Gets conversation set configuration"""
 
@@ -1034,6 +1053,36 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response=response, url=url)
 
+    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str) -> dict:
+        """Get the list of conversation files within a convo set."""
+
+        headers = self._get_headers()
+
+        payload = {
+            "namespace":namespace,
+            "conversation_set_id":conversation_set_src_id
+        }
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}"
+        response = requests.request(
+            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+        return self._validate_response(response=response,url=url,field="files")
+
+    def delete_conversation_file(self, namespace:str,conversation_set_src_id: str,file_name:str):
+        """Deletes a specific file within a convo set."""
+
+        headers = self._get_headers()
+
+        payload = {
+            "namespace":namespace,
+            "filename": file_name,
+            "conversation_set_id":conversation_set_src_id
+        }
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}/{file_name}"
+
+
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response=response,url=url)
 
     def update_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Update conversation set configuration"""
@@ -1057,6 +1106,58 @@ class HFAPI:
         response = requests.request(
             "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response=response, url=url)
+
+    # *****************************************************************************************************************
+    # Conversation Source - including add files
+    # *****************************************************************************************************************
+
+    def get_conversation_source(self, namespace: str, conversation_source_id: str) -> dict:
+        '''Download conversation set'''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        # /v1alpha1/files/{namespace}/{conversation_source_id}/export
+        url = f'https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}/export'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_json_file_to_conversation_source(self, namespace: str,
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str) -> dict:
+        '''Upload a JSON file to a conversation source'''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}"
+
+        # file_in = open(fqfp,mode="r",encoding="utf8")
+        # json.load(file_in)
+        # file_in.close()
+        upload_file = open(fqfp, 'rb')
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_HUMANFIRST_JSON',
+            'file': (upload_name, upload_file, 'application/json')}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+        upload_file.close()
+        return self._validate_response(response, url, "playbooks")
+
+    # *****************************************************************************************************************
+    # Querying Processed Conversation set data
+    # *****************************************************************************************************************
 
     def query_conversation_set(
             self,
@@ -1119,6 +1220,7 @@ class HFAPI:
             pipeline_id: str = "",
             pipeline_step_id: str = "",
             exists_filter_key_name: str = "",
+            metadata_predicate: list[dict] = [],
             download_format: int = 1, # 1 = JSON 2 = CSV
             prompt_id: str = "",
             generation_run_id: str = "",
@@ -1136,6 +1238,16 @@ class HFAPI:
         SOURCE_KIND_UNSPECIFIED = 0;
         SOURCE_KIND_UNLABELED = 1;
         SOURCE_KIND_GENERATED = 2;
+
+        metadata_predicate
+        [
+            {
+                "key": "INSERT_KEY_NAME",
+                "operator": "EQUALS|NOT_EQUALS|CONTAINS|NOT_CONTAINS|KEY_EXISTS|KEY_NOT_EXISTS|KEY_MATCHES|ANY",
+                "value": "VALUE|''"
+            },
+            #other filters..
+        ]
         '''
 
         # operator 0 EQUALS filter types
@@ -1159,7 +1271,7 @@ class HFAPI:
                     "operator": 0, # EQUALS
                     "value": metadata_values[i]
                 })
-        # operator 4 exists
+        # operator 4 exists -- older implementation
         if exists_filter_key_name != "":
             exists_filter = {
                 "key": exists_filter_key_name,
@@ -1168,6 +1280,46 @@ class HFAPI:
                 "value": ""
             }
             metadata_filters.append(exists_filter)
+
+        #Condition dict for filtering
+        condition_dict = {
+                "EQUALS": 0,
+                "NOT_EQUALS": 1,
+                "CONTAINS": 2,
+                "NOT_CONTAINS": 3,
+                "KEY_EXISTS": 4,
+                "KEY_NOT_EXISTS": 5,
+                "KEY_MATCHES": 6,
+                "ANY": 7
+        }
+
+        #Map the metadata filters passed in via object
+        if len(metadata_predicate) > 0:
+            for index, metadata_field in enumerate(metadata_predicate):
+
+                try:
+                    #Find matching numerical operator
+                    numerical_operator = condition_dict[metadata_field["operator"]]
+                except Exception as e:
+                    raise ValueError(f"Invalid operator '{metadata_field['operator']}'. Please choose from: "
+                            "EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS, "
+                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY")
+
+                #Support for OR query
+                if metadata_field.get("optional"):
+                    metadata_filters.append({
+                        "key": metadata_field['key'],
+                        "operator": numerical_operator,
+                        "value": metadata_field['value'],
+                        "optional": metadata_field['optional'],
+                    })
+                else:
+                    metadata_filters.append({
+                        "key": metadata_field['key'],
+                        "operator": numerical_operator,
+                        "value": metadata_field['value']
+                    })
+
 
         if order_direction_asc:
             order_direction = 1
@@ -1235,6 +1387,9 @@ class HFAPI:
             return downloaded_json.text
         else:
             raise RuntimeError(f'Unrecognised download format: {download_format}')
+
+
+
 
     # *****************************************************************************************************************
     # Integrations
