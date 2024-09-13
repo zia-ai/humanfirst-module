@@ -65,10 +65,21 @@ def test_tags():
     assert valid_playbook_id is True
 
     try:
-        pb_info = hf_api.get_playbook_info(namespace=TEST_NAMESPACE,
-                                 playbook=playbook_id)
+        path_to_file = os.path.join(here,'examples','json_model_example_output.json')
 
-        print(json.dumps(pb_info,indent=2))
+        with open(path_to_file, mode="r", encoding="utf8") as file_obj:
+            workspace_dict = json.load(file_obj)
+
+        _ = hf_api.import_intents(namespace=TEST_NAMESPACE, playbook=playbook_id, workspace_as_dict=workspace_dict)
+
+        intents_list = hf_api.get_intents(namespace=TEST_NAMESPACE,
+                                          playbook=playbook_id)
+
+        print(json.dumps(intents_list,indent=2))
+
+        pb = hf_api.get_playbook(namespace=TEST_NAMESPACE,playbook=playbook_id)
+
+        print(json.dumps(pb, indent=2))
 
         # delete the workspace and check if the workspace is deleted
         hf_api.delete_playbook(namespace=TEST_NAMESPACE, playbook_id=playbook_id, hard_delete=True)

@@ -198,7 +198,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags'
+        url = f'{BASE_URL}/{API_VERSION}/workspaces/{namespace}/{playbook}/tags'
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "tags")

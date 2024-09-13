@@ -202,6 +202,39 @@ def test_get_playbook_info():
                     playbook_id=playbook_id)
 
 
+def test_get_intents():
+    """Test get intent"""
+
+    hf_api = humanfirst.apis.HFAPI()
+
+    playbook_name = "Test tags"
+
+    playbook_id = _create_playbook(hf_api,
+                                   namespace=TEST_NAMESPACE,
+                                   playbook_name=playbook_name)
+
+    try:
+        path_to_file = os.path.join(here,'..','examples','json_model_example_output.json')
+
+        with open(path_to_file, mode="r", encoding="utf8") as file_obj:
+            workspace_dict = json.load(file_obj)
+
+        _ = hf_api.import_intents(namespace=TEST_NAMESPACE, playbook=playbook_id, workspace_as_dict=workspace_dict)
+
+        intents_list = hf_api.get_intents(namespace=TEST_NAMESPACE,
+                                          playbook=playbook_id)
+
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+    except RuntimeError as e:
+        print(e)
+        _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+
+
 def test_tags():
     """Test create, delete and list tags"""
 
