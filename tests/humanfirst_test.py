@@ -415,12 +415,12 @@ def test_conversation_set_file_upload():
 def test_conversation_set_list():
     """Check a file exists in the test account created convoset
     from the config file"""
-  
+
     hf_api = humanfirst.apis.HFAPI()
 
     list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
                                                     conversation_set_src_id=TEST_CONVOSET_SET_SRC)
-    
+
     assert isinstance(list_files,list)
     assert len(list_files) == 1
     assert list_files[0]["name"] == "abcd_108_test"
@@ -439,7 +439,7 @@ def test_delete_conversation_file():
                                                  conversation_set_src_id=TEST_CONVOSET_SET_SRC,
                                                  file_name="abcd_108_test"
                                                  )
-    
+
 def test_delete_not_exists_conversation_file():
     """Test deleting a file from a convoset"""
 
@@ -455,7 +455,7 @@ def test_delete_not_exists_conversation_file():
         output_exception = str(e.message)
 
     assert '"message":"file doesn\'t exists"' in output_exception
-    
+
 def test_batch_predict():
     """Test upload a dataset then predicting batch predicts with different timeouts"""
 
@@ -477,7 +477,7 @@ def test_batch_predict():
     hf_api.import_intents(namespace=TEST_NAMESPACE,
                           playbook=playbook_id,
                           workspace_as_dict=workspace_dict)
-      
+
     # train the NLU on that workspace
     hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
                              playbook=playbook_id,
@@ -495,7 +495,7 @@ def test_batch_predict():
                                   playbook=playbook_id)
         if sleep_counter > 60:
             raise RuntimeError("Counted get trained NLU")
-    
+
     # when we have one check it
     status = ""
     sleep_counter = 0
@@ -521,7 +521,7 @@ def test_batch_predict():
     predictions = hf_api.batchPredict(sentences=sentences, 
                         namespace=TEST_NAMESPACE,
                         playbook=playbook_id)
-    
+
     assert len(predictions) == 3
     assert predictions[0]["matches"][0]["name"] == "greeting"
 
@@ -542,25 +542,18 @@ def test_batch_predict():
         timeout_exception = e
     assert timeout_exception != ""
     # TODO: better exception check
-    
+
     # third with a big timeout where it should work
     predictions = hf_api.batchPredict(sentences=big_sentences, 
                     namespace=TEST_NAMESPACE,
                     playbook=playbook_id,
                     timeout=30)
-    
+
     assert len(predictions) == 300
 
     # clean up and delete the workspace
     delete_response = hf_api.delete_playbook(namespace=TEST_NAMESPACE,
                            playbook_id=playbook_id,
                            hard_delete=True)
-    
+
     assert delete_response == {}
-
-
-
-
-
-
-
