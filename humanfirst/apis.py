@@ -773,7 +773,10 @@ class HFAPI:
         return self._validate_response(response, url)
 
 
-    def batchPredict(self, sentences: list, namespace: str, playbook: str) -> dict:  # pylint: disable=invalid-name
+    def batchPredict(self, sentences: list, 
+                     namespace: str, 
+                     playbook: str,
+                     timeout: int = TIMEOUT) -> dict:  # pylint: disable=invalid-name
         '''Get response_dict of matches and hier matches for a batch of sentences
         TODO: model version changes'''
         payload = {
@@ -787,7 +790,7 @@ class HFAPI:
         url = f'{self.base_url}/{self.api_version}/nlu/predict/{namespace}/{playbook}/batch'
 
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=timeout)
         return self._validate_response(response, url, "predictions")
 
     # *****************************************************************************************************************
