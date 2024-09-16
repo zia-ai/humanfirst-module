@@ -6,6 +6,7 @@ Set of pytest humanfirst.objects.py tests
 # ***************************************************************************80**************************************120
 
 # standard imports
+import time
 import os
 import json
 from configparser import ConfigParser
@@ -414,12 +415,12 @@ def test_conversation_set_file_upload():
 def test_conversation_set_list():
     """Check a file exists in the test account created convoset
     from the config file"""
-  
+
     hf_api = humanfirst.apis.HFAPI()
 
     list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
                                                     conversation_set_src_id=TEST_CONVOSET_SET_SRC)
-    
+
     assert isinstance(list_files,list)
     assert len(list_files) == 1
     assert list_files[0]["name"] == "abcd_108_test"
@@ -438,7 +439,7 @@ def test_delete_conversation_file():
                                                  conversation_set_src_id=TEST_CONVOSET_SET_SRC,
                                                  file_name="abcd_108_test"
                                                  )
-    
+
 def test_delete_not_exists_conversation_file():
     """Test deleting a file from a convoset"""
 
@@ -454,6 +455,105 @@ def test_delete_not_exists_conversation_file():
         output_exception = str(e.message)
 
     assert '"message":"file doesn\'t exists"' in output_exception
-    
 
+def test_batch_predict():
+    """Test upload a dataset then predicting batch predicts with different timeouts"""
 
+    # open API
+    hf_api = humanfirst.apis.HFAPI()
+
+    # Create the playbook and get the ID
+    playbook = hf_api.create_playbook(namespace=TEST_NAMESPACE,playbook_name="test_batch_predict")
+    playbook_id = playbook["metastorePlaybook"]["id"]
+    nlu_id = playbook["metastorePlaybook"]["nlu"]["id"]
+    print(nlu_id)
+
+    # Read a JSON file of humanfirst training
+    file_in = open('examples/Academy-Ex03-Disambiguation-2024-09-15.json',mode='r',encoding='utf8')
+    workspace_dict = json.load(file_in)
+    file_in.close()
+
+    # Send it to that workspace
+    hf_api.import_intents(namespace=TEST_NAMESPACE,
+                          playbook=playbook_id,
+                          workspace_as_dict=workspace_dict)
+
+    # train the NLU on that workspace
+    hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
+                             playbook=playbook_id,
+                             nlu_id=nlu_id)
+
+    # Poll for it being trained
+    sleep_counter = 0 # doin linear rather than expo backoff in this test
+    total_wait_time = 0
+    list_trained_nlu = []
+    while len(list_trained_nlu) == 0:
+        sleep_counter = sleep_counter + 1
+        time.sleep(sleep_counter)
+        total_wait_time = total_wait_time + sleep_counter
+        list_trained_nlu = hf_api.list_trained_nlu(namespace=TEST_NAMESPACE,
+                                  playbook=playbook_id)
+        if sleep_counter > 60:
+            raise RuntimeError("Counted get trained NLU")
+
+    # when we have one check it
+    status = ""
+    sleep_counter = 0
+    while status != "RUN_STATUS_AVAILABLE":
+        list_trained_nlu = hf_api.list_trained_nlu(namespace=TEST_NAMESPACE,playbook=playbook_id)
+        for nlu in list_trained_nlu:
+            if nlu["params"]["engines"][0]["nluId"] == nlu_id:
+                status = nlu["status"]
+                total_wait_time = total_wait_time + sleep_counter
+                sleep_counter = sleep_counter + 1
+                print(f'{status} - wait time: {sleep_counter} - total time waited to date: {total_wait_time}')
+                time.sleep(sleep_counter)
+        if sleep_counter > 60:
+            raise RuntimeError("Couldn't get nlu to showcorrect status")
+
+    sentences = [
+        "Hello this is a really long way to say hello hello",
+        "Goodbye, and goodbye and goodbye and goodbye",
+        "Where is the paisley bus somewhere up the highroad on it's way to vindaloo?"
+    ]
+
+    # First call - no timeout param
+    predictions = hf_api.batchPredict(sentences=sentences, 
+                        namespace=TEST_NAMESPACE,
+                        playbook=playbook_id)
+
+    assert len(predictions) == 3
+    assert predictions[0]["matches"][0]["name"] == "greeting"
+
+    # make the predictions really big and then set timeout to one so almost certainly failes
+    big_sentences = []
+    for n in range(0,100):
+        big_sentences.extend(sentences)
+    assert len(big_sentences) == 300
+
+    # Second call timeout set to 1 so almost certainly fails batch predict
+    timeout_exception = ""
+    try:
+        predictions = hf_api.batchPredict(sentences=big_sentences, 
+                            namespace=TEST_NAMESPACE,
+                            playbook=playbook_id,
+                            timeout=1)
+    except Exception as e:
+        timeout_exception = e
+    assert timeout_exception != ""
+    # TODO: better exception check
+
+    # third with a big timeout where it should work
+    predictions = hf_api.batchPredict(sentences=big_sentences, 
+                    namespace=TEST_NAMESPACE,
+                    playbook=playbook_id,
+                    timeout=30)
+
+    assert len(predictions) == 300
+
+    # clean up and delete the workspace
+    delete_response = hf_api.delete_playbook(namespace=TEST_NAMESPACE,
+                           playbook_id=playbook_id,
+                           hard_delete=True)
+
+    assert delete_response == {}
