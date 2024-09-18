@@ -332,20 +332,6 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
         return self._validate_response(response, url, "playbooks")
 
-    def post_playbook(self, namespace: str, name: str) -> dict:
-        '''Create a playbook'''
-        payload = {
-            "namespace": namespace, # namespace of the playbook in the pipeline metastore
-            "playbook_name": name # not currently honored - fix under way
-        }
-
-        headers = self._get_headers()
-
-        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
-        response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-        return self._validate_response(response, url)
-
     def get_playbook_info(self, namespace: str, playbook: str) -> dict:
         '''Returns metadata of playbook'''
         payload = {
@@ -773,8 +759,8 @@ class HFAPI:
         return self._validate_response(response, url)
 
 
-    def batchPredict(self, sentences: list, 
-                     namespace: str, 
+    def batchPredict(self, sentences: list,
+                     namespace: str,
                      playbook: str,
                      timeout: int = TIMEOUT) -> dict:  # pylint: disable=invalid-name
         '''Get response_dict of matches and hier matches for a batch of sentences
