@@ -35,10 +35,12 @@ EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
+BASE_URL_TEST = constants.get("humanfirst.CONSTANTS","BASE_URL_TEST")
 BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+TEST_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","TEST_SIGN_IN_API_KEY")
 PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KEY")
 STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
 QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
@@ -162,6 +164,9 @@ class HFAPI:
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
             self.identity_api_key = PROD_SIGN_IN_API_KEY
+        elif self.studio_environment == "test":
+            self.base_url = BASE_URL_TEST
+            self.identity_api_key = TEST_SIGN_IN_API_KEY
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
             self.identity_api_key = STAGING_SIGN_IN_API_KEY
