@@ -19,6 +19,7 @@ import numpy
 import pandas
 import pytest
 import humanfirst
+from humanfirst.apis import HFAPIResponseValidationException
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -32,6 +33,9 @@ constants.read(path_to_config_file)
 TEST_NAMESPACE = constants.get("humanfirst.CONSTANTS","TEST_NAMESPACE")
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
+TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
+TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
+TRIGGER_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
 
 def test_intent_hierarchy():
     """test_intent_hierarchy"""
@@ -396,18 +400,29 @@ def test_tag_filters():
         assert str(
             e.value) == "Accepted types are ['incldue', 'exclude'] level was: both"
 
-def test_conversation_set_file_upload():
-    """Upload a conversation set to the test conversation set"""
+def test_conversation_set_functionalities():
+    """Test Upload,link,unlink,delete a conversation set"""
 
     hf_api = humanfirst.apis.HFAPI()
 
-    test_conv_src_id = hf_api.create_conversation_set(namespace=TEST_NAMESPACE,
-                                                      convoset_name=TEST_CONVOSET)
+    # test create conversation set 
+    conversation_obj = hf_api.create_conversation_set_with_set_and_src_id(namespace=TEST_NAMESPACE,
+                                                                            convoset_name=TEST_CONVOSET)
+
+    assert isinstance(conversation_obj, dict)
+    assert "convoset_id" in conversation_obj
+    assert "convosrc_id" in conversation_obj
+    assert isinstance(conversation_obj["convoset_id"], str)
+    assert isinstance(conversation_obj["convosrc_id"], str)
+    assert "convset-" in conversation_obj["convoset_id"]
+    assert "convsrc-" in conversation_obj["convosrc_id"]
+
+    # test upload a file to the conversation set
     upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
-                                                                    conversation_source_id=test_conv_src_id,
-                                                                    upload_name="abcd_108_test",
-                                                                    fqfp="./examples/abcd_2022_05_convo_108.json"
-                                                                    )
+                                                                conversation_source_id=conversation_obj["convosrc_id"],
+                                                                upload_name="abcd_108_test",
+                                                                fqfp="./examples/abcd_2022_05_convo_108.json"
+                                                                )
 
     assert isinstance(upload_response,dict)
     assert upload_response["filename"] == "abcd_108_test"
@@ -418,7 +433,7 @@ def test_conversation_set_file_upload():
     # from the config file
 
     list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
-                                                    conversation_set_src_id=test_conv_src_id)
+                                                    conversation_set_src_id=conversation_obj["convosrc_id"])
 
     assert isinstance(list_files,list)
     assert len(list_files) == 1
@@ -429,26 +444,115 @@ def test_conversation_set_file_upload():
     upload_datetime = parser.parse(upload_time)
     assert isinstance(upload_datetime,datetime)
 
+    # test linking the conversation set to a workspace
+    # create a playbook
+    create_pb_res = hf_api.create_playbook(namespace=TEST_NAMESPACE,
+                                            playbook_name="test link-unlink dataset")
+
+    playbook_id = create_pb_res["etcdId"]
+
+    assert "playbook-" in playbook_id
+
+    link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE, playbook_id=playbook_id,
+                                            convoset_id=conversation_obj["convoset_id"])
+    assert "triggerId" in link_res
+    assert isinstance(link_res["triggerId"],str)
+    assert "trig-" in link_res["triggerId"]
+
+    # check if the link trigger is completed
+    link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                  trigger_id=link_res["triggerId"])
+    while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+        time.sleep(TRIGGER_WAIT_TIME)
+        link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                      trigger_id=link_res["triggerId"])
+
+    # return empty json when there is no changes made in the tool
+    # trying to link the same dataset to the same workspace as above
+    link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE,
+                                            playbook_id=playbook_id,
+                                            convoset_id=conversation_obj["convoset_id"])
+    assert link_res == {}
+
+    # upon trying to delete the conversation set when it is linked to workspaces, it throws error
+    delete_res_exception = ""
+    try:
+        _ = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                             convoset_id=conversation_obj["convoset_id"])
+    except HFAPIResponseValidationException as e:
+        delete_res_exception = e.message
+
+    assert "conversation set is still being referenced" in delete_res_exception
+
+    # test unlinking the conversation set from a workspace
+    unlink_res = hf_api.unlink_conversation_set(namespace=TEST_NAMESPACE,
+                                                playbook_id=playbook_id,
+                                                convoset_id=conversation_obj["convoset_id"])
+    assert "triggerId" in unlink_res
+    assert isinstance(unlink_res["triggerId"],str)
+    assert "trig-" in unlink_res["triggerId"]
+
+    # check if unlink trigger is completed
+    unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                    trigger_id=unlink_res["triggerId"])
+    while unlink_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+        time.sleep(TRIGGER_WAIT_TIME)
+        unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                        trigger_id=unlink_res["triggerId"])
+
+    # return empty json when there is no changes made in the tool
+    # trying to unlink the same dataset from the same workspace as above
+    unlink_res = hf_api.unlink_conversation_set(namespace=TEST_NAMESPACE,
+                                                playbook_id=playbook_id,
+                                                convoset_id=conversation_obj["convoset_id"])
+    assert unlink_res == {}
+
     # Test deleting a file from a convoset
-
-
-    deleted_file_return = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
-                                                 conversation_set_src_id=test_conv_src_id,
+    delete_res = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
+                                                 conversation_set_src_id=conversation_obj["convosrc_id"],
                                                  file_name="abcd_108_test"
                                                  )
-    
-    # Test deleting a file from a convoset with exception
 
+    assert "triggerId" in delete_res
+    assert isinstance(delete_res["triggerId"],str)
+    assert "trig-" in delete_res["triggerId"]
+
+    # check if unlink trigger is completed
+    delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                    trigger_id=delete_res["triggerId"])
+    while delete_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+        time.sleep(TRIGGER_WAIT_TIME)
+        delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                        trigger_id=delete_res["triggerId"])
+
+    # Test deleting a file from a convoset with exception
     output_exception = ""
     try:
         hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
-                                        conversation_set_src_id=test_conv_src_id,
+                                        conversation_set_src_id=conversation_obj["convosrc_id"],
                                         file_name="abcd_108_test"
                                         )
     except humanfirst.apis.HFAPIResponseValidationException as e:
         output_exception = str(e.message)
 
     assert '"message":"file doesn\'t exists"' in output_exception
+
+    # delete conversation set
+    delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                                     convoset_id=conversation_obj["convoset_id"])
+    assert delete_response == {}
+
+    # delete the workspace and check if the workspace is deleted
+    delete_playbook_res = hf_api.delete_playbook(namespace=TEST_NAMESPACE, playbook_id=playbook_id, hard_delete=True)
+    assert delete_playbook_res == {}
+
+    # check if the provided playbook is removed from the workspace
+    list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    valid_playbook_id = False
+    for i,_ in enumerate(list_pb):
+        if playbook_id == list_pb[i]["etcdId"]:
+            valid_playbook_id = True
+    assert valid_playbook_id is False
 
 def test_batch_predict():
     """Test upload a dataset then predicting batch predicts with different timeouts"""

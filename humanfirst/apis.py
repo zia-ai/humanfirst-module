@@ -947,9 +947,8 @@ class HFAPI:
     def _refresh_bearer_token(self):
         """refreshes bearer token"""
 
-        key = 'AIzaSyA5xZ7WCkI6X1Q2yzWHUrc70OXH5iCp7-c'
         base_url = 'https://securetoken.googleapis.com/v1/token?key='
-        auth_url = f'{base_url}{key}'
+        auth_url = f'{base_url}{self.identity_api_key}'
 
         headers = self._get_headers()
 
@@ -1073,24 +1072,104 @@ class HFAPI:
 
         return conversation_source_id
 
-    # Not currently exposed - requested 2024-08-13
-    # def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
-    #     """Deletes a conversation_set"""
+    def create_conversation_set_with_set_and_src_id(self, namespace: str, convoset_name: str) -> dict:
+        """Creates a conversation set. Returns both conversation set and source ID"""
 
-    #     payload = {
-    #         "namespace": namespace,
-    #         "conversation_set":{
-    #             "name": convoset_name,
-    #             "description": ""
-    #         }
-    #     }
+        payload = {
+            "namespace": namespace,
+            "conversation_set":{
+                "name": convoset_name,
+                "description": ""
+            }
+        }
 
-    #     headers = self._get_headers()
+        headers = self._get_headers()
 
-    #     url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convo_set_id}"
-    #     response = requests.request(
-    #         "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-    #     return self._validate_response(response=response, url=url)
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}"
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        create_conversation_response = self._validate_response(response=response, url=url)
+        convo_set_id = create_conversation_response["id"]
+
+        # check whether conversation source has been created
+        # If not, then create one
+        get_convo_set_config_response = self.get_conversation_set_configuration(namespace=namespace,
+                                                                                convoset_id=convo_set_id)
+
+        if "sources" in get_convo_set_config_response:
+            conversation_source_id = get_convo_set_config_response["sources"][0]["userUpload"]["conversationSourceId"]
+
+        else:
+            update_convo_set_config_response = self.update_conversation_set_configuration(namespace=namespace,
+                                                                                          convoset_id=convo_set_id)
+
+            conversation_source_id=update_convo_set_config_response["sources"][0]["userUpload"]["conversationSourceId"]
+
+        conversation_obj = {
+            "convoset_id": convo_set_id,
+            "convosrc_id": conversation_source_id
+        }
+
+        return conversation_obj
+
+    def link_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str) -> dict:
+        """Link conversation sets"""
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "conversation_sets": [{
+                "namespace": namespace,
+                "id": convoset_id
+            }]
+        }
+
+        headers = self._get_headers()
+
+        url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:link'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
+
+    # TODO: Implement API to get the list of playbook ids a convoset is linked to
+    def unlink_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str) -> dict:
+        """Unlink conversation sets"""
+
+        # TODO: Unlink convoset from all the linked workspaces
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "conversation_sets": [{
+                "namespace": namespace,
+                "id": convoset_id
+            }]
+        }
+
+        headers = self._get_headers()
+
+        url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:unlink'
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
+
+    def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
+        """Deletes a conversation_set"""
+
+        # TODO: A "force" boolean method parameter
+        #       when enabled, the convoset should be unlinked from all the workspaces and deleted
+
+        payload = {
+            "namespace": namespace,
+            "id": convoset_id
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}"
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response=response, url=url)
 
     def get_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
         """Gets conversation set configuration"""
@@ -1165,6 +1244,11 @@ class HFAPI:
     # Conversation Source - including add files
     # *****************************************************************************************************************
 
+    # TODO: Reference conversation set id using conversation source id
+    #       Currently create_conversation_set method returns only conversation_source_id
+    #       Implemented a method which returns both convoset and convosrc ids
+    #       Meanwhile people who implemented create_conversation_set, need this todo to help them get the convoset id,
+    #       which then can be used to delete the set.
     def get_conversation_source(self, namespace: str, conversation_source_id: str) -> dict:
         '''Download conversation set'''
         payload = {
@@ -1701,6 +1785,20 @@ class HFAPI:
     # *****************************************************************************************************************
     # Pipeline
     # *****************************************************************************************************************
+
+    #  TODO: Need to implement DescribeTrigger
+    def describe_trigger(self, namespace: str, trigger_id: str):
+        """Describe Trigger"""
+        payload = {
+            "namespace": namespace,
+            "trigger_id": trigger_id
+        }
+
+        headers = self._get_headers()
+        url = f'{self.base_url}/{self.api_version}/triggers/{namespace}/{trigger_id}'
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+        return self._validate_response(response, url)
 
     def trigger_playbook_pipeline(self,
                                   namespace: str,
