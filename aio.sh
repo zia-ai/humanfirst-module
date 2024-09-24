@@ -73,7 +73,7 @@ function start_aio() {
     docker rm -f aio 2&> /dev/null || true # remove previous container if exists
 
     docker run --name aio -d \
-        -p 50051:50051 \
+        -p 8888:50051 \
         "${DOCKER_ARGS[@]}" \
         "gcr.io/trial-184203/backend-aio:$AIO_TAG" \
         "${AIO_ARGS[@]}"

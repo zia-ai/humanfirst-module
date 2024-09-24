@@ -236,8 +236,7 @@ class HFAPI:
             try:
                 candidate = response.json()
             except requests.JSONDecodeError as e:
-                print(response)
-                print(e)
+                raise Exception(f'{response} - Error: {e}')
             if candidate:
                 if field and field in candidate.keys():
                     return candidate[field]
