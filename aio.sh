@@ -19,10 +19,10 @@ fi
 # control if and how we want to start the all-in-one backend
 AIO_START=${AIO_START:-1}
 AIO_TAG=${AIO_TAG_OVERRIDE:-${AIO_TAG:-dev}}
-AIO_PORT=${AIO_PORT:-50051}
+AIO_PORT=${AIO_PORT:-8888}
 AIO_STUDIO_TAG=${AIO_STUDIO_TAG_OVERRIDE:-${AIO_STUDIO_TAG:-dev}}
 AIO_STUDIO_PATH=${AIO_STUDIO_PATH:-""} # if set, serves studio from this path. should point to a `build` directory
-BASE_URL=${BASE_URL:-"http://127.0.0.1:50051"}
+BASE_URL=${BASE_URL:-"http://127.0.0.1:8888"}
 ZIA_PATH=${ZIA_PATH:-"../zia_proxy.sh"}
 ENV=${ENV:-"aio"}
 
@@ -49,7 +49,7 @@ AIO_STARTED=0
 function start_aio() {
     echo "Starting AIO..."
 
-    DOCKER_ARGS=(-p "${AIO_PORT}:50051")
+    DOCKER_ARGS=(-p "${AIO_PORT}:8888")
     AIO_ARGS=()
 
     if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]]; then
