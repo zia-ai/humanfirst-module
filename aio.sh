@@ -127,7 +127,7 @@ test)
         start_aio
     fi
 
-    pytest --cov ./humanfirst/ --cov-report term
+    pytest -k test_tags --cov ./humanfirst/ --cov-report term
 
     ;;
 

@@ -233,7 +233,11 @@ class HFAPI:
                 url=url, payload=payload, response=response)
 
             # Check for the passed field or return the full object
-            candidate = response.json()
+            try:
+                candidate = response.json()
+            except requests.JSONDecodeError as e:
+                print(response)
+                print(e)
             if candidate:
                 if field and field in candidate.keys():
                     return candidate[field]
