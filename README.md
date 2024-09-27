@@ -84,3 +84,25 @@ or from academy example change the version number and the path...
 
 make sure any last minute build changes committed!
 pytest in academy
+
+## Run AIO container Locally
+* Open WSL ubuntu
+* Make sure docker is working
+* Go to humanfirst-module directory
+* Create virtualenv & activate `python3 -m venv ubuntu-venv` 
+* if bash shell `source venv/bin/activate` **In case of deactivating use "deactivate"**
+* Update PiP `python -m pip install --upgrade pip`
+* install requirements  `pip install -r requirements.txt --no-cache`
+* Install gcloud - https://cloud.google.com/sdk/docs/install
+* Authenticate - `gcloud auth application-default login`
+* Authenticate for Docker - `gcloud auth configure-docker`
+* Run AIO container `./aio.sh test`
+
+
+## Log handling
+* By default everything gets logged in SDK
+* To store the logs in a specific directory set the directory to HF_LOG_DIR
+* Can set log levels using HF_LOG_LEVEL. Accepts - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' 
+* If want to do both - store the logs in a file as well as print them in the console set HF_LOG_CONSOLE_ENABLE to 'TRUE'
+
+***Note: Control what files can go into SDK using Manifest.in file***

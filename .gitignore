@@ -167,10 +167,5 @@ package_test.py
 
 
 # CI/CD related ignores
-google-cloud-sdk
-google-cloud-sdk/*
-node_modules
-node_modules/*
-google-cloud-cli-linux-x86_64.tar.gz
-package.json
-yarn.lock
+ubuntu-venv
+ubuntu-venv/*

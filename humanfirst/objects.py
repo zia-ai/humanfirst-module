@@ -31,8 +31,51 @@ import pandas
 here = os.path.abspath(os.path.dirname(__file__))
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
 
+# Get the current date and time
+current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Create the log file name with the current datetime
+log_filename = f"log_{current_datetime}.log"
+
+# get log directory
+log_dir = os.environ.get("HF_LOG_DIR")
+if log_dir:
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    path_to_save_log = os.path.join(log_dir,log_filename)
+else:
+    path_to_save_log = os.path.join(here,'logs',log_filename)
+
+log_defaults = {
+    'HF_LOG_FILE_PATH': path_to_save_log
+}
+
+# Set log levels
+log_level = os.environ.get("HF_LOG_LEVEL")
+if log_level is not None:
+    # set log level
+    if log_level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        raise RuntimeError("Incorrect log level. Should be - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'")
+
+    log_defaults['HF_LOG_LEVEL'] = log_level
+else:
+    log_defaults['HF_LOG_LEVEL'] = 'INFO' # default level
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("HF_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_defaults['HF_LOG_HANDLER'] = 'consoleHandler,fileHandler'
+elif log_console_enable == "FALSE":
+    log_defaults['HF_LOG_HANDLER'] = 'fileHandler'
+else:
+    raise RuntimeError("Incorrect HF_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', or 'FALSE'")
+
 # Load logging configuration
-logging.config.fileConfig(path_to_log_config_file)
+logging.config.fileConfig(
+    path_to_log_config_file,
+    defaults=log_defaults
+)
 
 # create logger
 logger = logging.getLogger('humanfirst.objects')

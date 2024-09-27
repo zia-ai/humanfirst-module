@@ -1,2 +1,2 @@
-global-include README.md LICENSE *.py *.conf *.cfg
-recursive-exclude venv *
+global-include README.md LICENSE *.py *.conf *.cfg *humanfirst/logs*
+recursive-exclude *venv *
