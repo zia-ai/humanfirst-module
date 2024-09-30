@@ -37,18 +37,50 @@ current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 # Create the log file name with the current datetime
 log_filename = f"log_{current_datetime}.log"
 
-# get log directory
-log_dir = os.environ.get("HF_LOG_DIR")
-if log_dir:
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    path_to_save_log = os.path.join(log_dir,log_filename)
-else:
-    path_to_save_log = os.path.join(here,'logs',log_filename)
+# Decide whether to save logs in a file or not
+log_file_enable = os.environ.get("HF_LOG_FILE_ENABLE")
 
-log_defaults = {
-    'HF_LOG_FILE_PATH': path_to_save_log
-}
+log_handler_list = []
+
+if log_file_enable == "TRUE":
+    log_handler_list.append('rotatingFileHandler')
+elif log_file_enable == "FALSE" or log_file_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect HF_LOG_FILE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+log_defaults = {}
+
+# get log directory if going to save the logs
+path_to_save_log = os.path.join(here,'logs',log_filename)
+if log_file_enable == "TRUE":
+    log_dir = os.environ.get("HF_LOG_DIR")
+    if log_dir:
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        path_to_save_log = os.path.join(log_dir,log_filename)
+    else:
+        raise RuntimeError("Require Log directory environment variable set up - HF_LOG_DIR")
+else:
+    # avoid logging to a file
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL)
+log_defaults['HF_LOG_FILE_PATH'] = path_to_save_log
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("HF_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_handler_list.append('consoleHandler')
+elif log_console_enable == "FALSE" or log_console_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect HF_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+if log_handler_list:
+    log_defaults['HF_LOG_HANDLER'] = ",".join(log_handler_list)
+else:
+    log_defaults['HF_LOG_HANDLER'] = "nullHandler"
+
 
 # Set log levels
 log_level = os.environ.get("HF_LOG_LEVEL")
@@ -61,15 +93,6 @@ if log_level is not None:
 else:
     log_defaults['HF_LOG_LEVEL'] = 'INFO' # default level
 
-# Decide whether to print the logs in the console or not
-log_console_enable = os.environ.get("HF_LOG_CONSOLE_ENABLE")
-
-if log_console_enable == "TRUE":
-    log_defaults['HF_LOG_HANDLER'] = 'consoleHandler,fileHandler'
-elif log_console_enable == "FALSE":
-    log_defaults['HF_LOG_HANDLER'] = 'fileHandler'
-else:
-    raise RuntimeError("Incorrect HF_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', or 'FALSE'")
 
 # Load logging configuration
 logging.config.fileConfig(

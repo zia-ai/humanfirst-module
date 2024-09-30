@@ -12,7 +12,10 @@ HelloWorld
 * install requirements  `pip install -r requirements.txt --no-cache`
 
 ## Using pytest to test everything is working fine
-Before using `pytest` command 
+`pytest --cov ./humanfirst/ --cov-report html --cov-report term`
+--cov-report html - produces a report in HTML page
+--cov-report term - prints the report in console
+--cov-report term:skip-covered - helps to see uncovered parts
 
 ## Build packages
 
@@ -96,13 +99,20 @@ pytest in academy
 * Install gcloud - https://cloud.google.com/sdk/docs/install
 * Authenticate - `gcloud auth application-default login`
 * Authenticate for Docker - `gcloud auth configure-docker`
+* Synchronize with a timeserver - `sudo timedatectl set-ntp true`
 * Run AIO container `./aio.sh test`
 
 
 ## Log handling
-* By default everything gets logged in SDK
-* To store the logs in a specific directory set the directory to HF_LOG_DIR
+* HF SDK logging offers multiple options. Either can save the logs, print them in the console, do both or none
+* To store the logs in a specific directory set HF_LOG_FILE_ENABLE to 'TRUE' and set the directory in HF_LOG_DIR where the log files needs to be stored
+* Log file management
+    * Rotating File Handler is used
+    * When the log file size exceeds 100MB (Hard coded). Automatically a new file is created and old one is saved
+    * Can go to upto 4 additional log files
+    * If the number of log files exceed the additional log file count + 1, then automatically the oldest log file is gets replaced with new log information
 * Can set log levels using HF_LOG_LEVEL. Accepts - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' 
-* If want to do both - store the logs in a file as well as print them in the console set HF_LOG_CONSOLE_ENABLE to 'TRUE'
+* To print the logs in console set HF_LOG_CONSOLE_ENABLE to 'TRUE'
+* Default - the logs are neither saved nor printed onto console
 
 ***Note: Control what files can go into SDK using Manifest.in file***
