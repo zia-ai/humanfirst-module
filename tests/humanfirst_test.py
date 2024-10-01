@@ -635,25 +635,63 @@ def test_conversation_set_functionalities():
 
             assert "playbook-" in playbook_id
 
+            try:
+                link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE, playbook_id=playbook_id,
+                                                        convoset_id=conversation_obj["convoset_id"])
+                assert "triggerId" in link_res
+                assert isinstance(link_res["triggerId"],str)
+                assert "trig-" in link_res["triggerId"]
 
-            # delete conversation set
-            delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
-                                                            convoset_id=conversation_obj["convoset_id"])
-            assert delete_response == {}
+                # check if the link trigger is completed
+                link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                            trigger_id=link_res["triggerId"])
+                while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+                    time.sleep(TRIGGER_WAIT_TIME)
+                    link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                                                                trigger_id=link_res["triggerId"])
 
-            # delete the workspace and check if the workspace is deleted
-            delete_playbook_res = hf_api.delete_playbook(namespace=TEST_NAMESPACE,
-                                                        playbook_id=playbook_id,
-                                                        hard_delete=True)
-            assert delete_playbook_res == {}
+                # # return empty json when there is no changes made in the tool
+                # # trying to link the same dataset to the same workspace as above
+                # link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE,
+                #                                         playbook_id=playbook_id,
+                #                                         convoset_id=conversation_obj["convoset_id"])
+                # assert link_res == {}
 
-            # check if the provided playbook is removed from the workspace
-            list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
-            valid_playbook_id = False
-            for i,_ in enumerate(list_pb):
-                if playbook_id == list_pb[i]["etcdId"]:
-                    valid_playbook_id = True
-            assert valid_playbook_id is False
+                # # upon trying to delete the conversation set when it is linked to workspaces, it throws error
+                # delete_res_exception = ""
+                # try:
+                #     _ = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                #                                         convoset_id=conversation_obj["convoset_id"])
+                # except HFAPIResponseValidationException as e:
+                #     delete_res_exception = e.message
+
+                # assert "conversation set is still being referenced" in delete_res_exception
+
+                # delete conversation set
+                delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                                                convoset_id=conversation_obj["convoset_id"])
+                assert delete_response == {}
+
+                # delete the workspace and check if the workspace is deleted
+                delete_playbook_res = hf_api.delete_playbook(namespace=TEST_NAMESPACE,
+                                                            playbook_id=playbook_id,
+                                                            hard_delete=True)
+                assert delete_playbook_res == {}
+
+                # check if the provided playbook is removed from the workspace
+                list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+                valid_playbook_id = False
+                for i,_ in enumerate(list_pb):
+                    if playbook_id == list_pb[i]["etcdId"]:
+                        valid_playbook_id = True
+                assert valid_playbook_id is False
+
+            except RuntimeError as e:
+                print(e)
+                hf_api.unlink_conversation_set(namespace=TEST_NAMESPACE,
+                                            playbook_id=playbook_id,
+                                            convoset_id=conversation_obj["convoset_id"])
+                raise
 
         except RuntimeError as e:
             print(e)
