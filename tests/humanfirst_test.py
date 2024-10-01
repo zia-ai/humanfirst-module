@@ -626,12 +626,41 @@ def test_conversation_set_functionalities():
         upload_datetime = parser.parse(upload_time)
         assert isinstance(upload_datetime,datetime)
 
+        # test linking the conversation set to a workspace
+        try:
+            # create a playbook
+            playbook_id = _create_playbook(hf_api,
+                                    namespace=TEST_NAMESPACE,
+                                    playbook_name="test link-unlink dataset")
 
-        # delete conversation set
-        delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
-                                                        convoset_id=conversation_obj["convoset_id"])
-        assert delete_response == {}
+            assert "playbook-" in playbook_id
 
+
+            # delete conversation set
+            delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                                            convoset_id=conversation_obj["convoset_id"])
+            assert delete_response == {}
+
+            # delete the workspace and check if the workspace is deleted
+            delete_playbook_res = hf_api.delete_playbook(namespace=TEST_NAMESPACE,
+                                                        playbook_id=playbook_id,
+                                                        hard_delete=True)
+            assert delete_playbook_res == {}
+
+            # check if the provided playbook is removed from the workspace
+            list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+            valid_playbook_id = False
+            for i,_ in enumerate(list_pb):
+                if playbook_id == list_pb[i]["etcdId"]:
+                    valid_playbook_id = True
+            assert valid_playbook_id is False
+
+        except RuntimeError as e:
+            print(e)
+            _del_playbook(hf_api=hf_api,
+                    namespace=TEST_NAMESPACE,
+                    playbook_id=playbook_id)
+            raise
 
     except RuntimeError as e:
         print(e)
