@@ -126,7 +126,7 @@ test)
     if [[ $AIO_START -eq 1 ]]; then
         start_aio
     fi
-    sudo timedatectl set-ntp true
+
     pytest -k test_conversation_set_functionalities --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
