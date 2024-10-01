@@ -18,9 +18,9 @@ fi
 
 # control if and how we want to start the all-in-one backend
 AIO_START=${AIO_START:-1}
-AIO_TAG=${AIO_TAG_OVERRIDE:-${AIO_TAG:-dev}}
+AIO_TAG=${AIO_TAG_OVERRIDE:-${AIO_TAG:-pb-7763-aio-http-handlers}} # if want to use particular branch, set branch name here
 AIO_PORT=${AIO_PORT:-8888}
-AIO_STUDIO_TAG=${AIO_STUDIO_TAG_OVERRIDE:-${AIO_STUDIO_TAG:-dev}}
+AIO_STUDIO_TAG=${AIO_STUDIO_TAG_OVERRIDE:-${AIO_STUDIO_TAG:-pb-7763-aio-http-handlers}} # if want to use particular branch, set branch name here
 AIO_STUDIO_PATH=${AIO_STUDIO_PATH:-""} # if set, serves studio from this path. should point to a `build` directory
 BASE_URL=${BASE_URL:-"http://127.0.0.1:8888"}
 ZIA_PATH=${ZIA_PATH:-"../zia_proxy.sh"}
@@ -127,7 +127,7 @@ test)
         start_aio
     fi
 
-    pytest -k test_tags --cov ./humanfirst/ --cov-report term
+    pytest --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 
