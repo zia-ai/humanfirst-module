@@ -837,10 +837,13 @@ def test_batch_predict():
                           workspace_as_dict=workspace_dict)
 
     # train the NLU on that workspace
-    hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
-                             playbook=playbook_id,
-                             nlu_id=nlu_id)
+    train_nlu_trigger = hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
+                                                playbook=playbook_id,
+                                                nlu_id=nlu_id)
+    
+    print(train_nlu_trigger)
 
+    # TODO use describetrigger to know the status of NLU training instead of below
     # Poll for it being trained
     sleep_counter = 0 # doin linear rather than expo backoff in this test
     total_wait_time = 0
@@ -851,6 +854,7 @@ def test_batch_predict():
         total_wait_time = total_wait_time + sleep_counter
         list_trained_nlu = hf_api.list_trained_nlu(namespace=TEST_NAMESPACE,
                                   playbook=playbook_id)
+        print(f"List trained NLU: {list_trained_nlu}")
         if sleep_counter > 60:
             raise RuntimeError("Counted get trained NLU")
 
