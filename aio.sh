@@ -127,7 +127,7 @@ test)
         start_aio
     fi
 
-    pytest -k test_playbook_creation_deletion --cov ./humanfirst/ --cov-report term # pytest command
+    pytest -k test_conversation_set_functionalities -s --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 

@@ -1849,7 +1849,6 @@ class HFAPI:
     # Pipeline
     # *****************************************************************************************************************
 
-    #  TODO: Need to implement DescribeTrigger
     def describe_trigger(self, namespace: str, trigger_id: str):
         """Describe Trigger"""
         payload = {

@@ -98,13 +98,12 @@ def test_playbook_creation_deletion():
     """test_playbook_creation_deletion"""
 
     hf_api = humanfirst.apis.HFAPI()
-
+    # create a playbook
+    playbook_id = _create_playbook(hf_api,
+                            namespace=TEST_NAMESPACE,
+                            playbook_name="test link-unlink dataset")
+    
     try:
-        # create a playbook
-        playbook_id = _create_playbook(hf_api,
-                                namespace=TEST_NAMESPACE,
-                                playbook_name="test link-unlink dataset")
-
         assert "playbook-" in playbook_id
 
         # delete the workspace and check if the workspace is deleted
@@ -120,7 +119,7 @@ def test_playbook_creation_deletion():
             if playbook_id == list_pb[i]["etcdId"]:
                 valid_playbook_id = True
         assert valid_playbook_id is False
-    
+
     except Exception as e:
         print(e)
         _del_playbook(hf_api=hf_api,
@@ -682,13 +681,17 @@ def test_conversation_set_functionalities():
                 link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                             trigger_id=link_res["triggerId"])
                 i=0
+                print(link_trigger_report["triggerState"]["status"])
                 while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+                    print("Inside link trigger report")
                     if i >= TRIGGER_WAIT_TIME_COUNT:
                         raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
                     time.sleep(TRIGGER_WAIT_TIME)
                     link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                 trigger_id=link_res["triggerId"])
                     i = i + 1
+                    print(link_trigger_report["triggerState"]["status"])
+                print("Outside link trigger report")
 
                 # return empty json when there is no changes made in the tool
                 # trying to link the same dataset to the same workspace as above
@@ -720,12 +723,14 @@ def test_conversation_set_functionalities():
                                                                 trigger_id=unlink_res["triggerId"])
                 i=0
                 while unlink_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+                    print("Inside unlink trigger report")
                     if i >= TRIGGER_WAIT_TIME_COUNT:
                         raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
                     time.sleep(TRIGGER_WAIT_TIME)
                     unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                     trigger_id=unlink_res["triggerId"])
                     i = i + 1
+                print("Outside unlink trigger report")
 
                 # return empty json when there is no changes made in the tool
                 # trying to unlink the same dataset from the same workspace as above
@@ -749,12 +754,14 @@ def test_conversation_set_functionalities():
                                                                 trigger_id=delete_res["triggerId"])
                 i=0
                 while delete_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
+                    print("Inside del trigger report")
                     if i >= TRIGGER_WAIT_TIME_COUNT:
                         raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
                     time.sleep(TRIGGER_WAIT_TIME)
                     delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                     trigger_id=delete_res["triggerId"])
                     i = i + 1
+                print("Outside del trigger report")
 
                 # Test deleting a file from a convoset with exception
                 output_exception = ""
@@ -805,6 +812,7 @@ def test_conversation_set_functionalities():
         print(e)
         hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                         convoset_id=conversation_obj["convoset_id"])
+        raise
 
 def test_batch_predict():
     """Test upload a dataset then predicting batch predicts with different timeouts"""
