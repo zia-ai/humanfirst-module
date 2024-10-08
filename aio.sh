@@ -29,6 +29,10 @@ ENV=${ENV:-"aio"}
 # if set, don't mount ~/.config/gcloud, but use service account specified in this file
 GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-""}
 
+EMBEDDING_K8S_FORWARD=${EMBEDDING_K8S_FORWARD:-1} # if enabled, forward embedding service from a k8s deployment
+EMBEDDING_K8S_NAMESPACE=${EMBEDDING_K8S_NAMESPACE:-staging2}
+EMBEDDING_SERVICE=${EMBEDDING_SERVICE:-""} # if set, use this address for embeddings
+
 if [ -f "logs/env.log" ]; then
     echo "removing previous env log"
     rm logs/env.log
@@ -51,6 +55,15 @@ function start_aio() {
 
     DOCKER_ARGS=(-p "${AIO_PORT}:8888")
     AIO_ARGS=()
+
+    if [[ -n "$EMBEDDING_SERVICE" ]]; then
+        DOCKER_ARGS=("${DOCKER_ARGS[@]}" -e "EMBEDDINGS_SERVICE=${EMBEDDING_SERVICE}")
+    elif [[ -n "$EMBEDDING_K8S_FORWARD" ]]; then
+        DOCKER_ARGS=("${DOCKER_ARGS[@]}" -e "EMBEDDINGS_SERVICE=${HOST_ADDRESS}:8501")
+    else
+        echo "No embeddings address specified"
+        exit 1
+    fi
 
     if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]]; then
         cp "$GOOGLE_APPLICATION_CREDENTIALS" "$HOME/.config/gcloud/application_default_credentials.json"
@@ -89,6 +102,15 @@ function start_aio() {
     AIO_STARTED=1
 }
 
+
+EMBEDDINGS_PID=0
+function k8s_forward_embeddings() {
+    echo "Forwarding embeddings..."
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" get deployment/embeddings # try to get deployment first, it will fail if something isn't configured
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" port-forward deployment/embeddings 8501:50051 --address 0.0.0.0 &
+    EMBEDDINGS_PID=$!
+}
+
 function validate_test_params() {
     if [[ -z "$CRED_EMAIL" || -z "$CRED_PASSWORD" ]]; then
         echo "CRED_EMAIL and CRED_PASSWORD must be set" >&2
@@ -123,6 +145,10 @@ COMMAND=${1:-test}
 case $COMMAND in
 test)
     # validate_test_params
+    
+    if [[ $EMBEDDING_K8S_FORWARD -eq 1 ]]; then
+        k8s_forward_embeddings
+    fi
     if [[ $AIO_START -eq 1 ]]; then
         start_aio
     fi
@@ -132,6 +158,9 @@ test)
     ;;
 
 start-aio)
+    if [[ $EMBEDDING_K8S_FORWARD -eq 1 ]]; then
+        k8s_forward_embeddings
+    fi
 
     start_aio
     echo "Press any key to stop AIO..."
