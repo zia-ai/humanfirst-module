@@ -153,7 +153,7 @@ test)
         start_aio
     fi
 
-    pytest -k test_conversation_set_functionalities -s --cov ./humanfirst/ --cov-report term # pytest command
+    pytest --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 

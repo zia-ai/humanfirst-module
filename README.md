@@ -100,20 +100,20 @@ pytest in academy
     * Install gcloud - https://cloud.google.com/sdk/docs/install
     * Authenticate - `gcloud auth application-default login`
     * Authenticate for Docker - `gcloud auth configure-docker`
+    * Set project using gcloud - `gcloud config set project <staging project id>`
+    * Set quota for the project - `gcloud auth application-default set-quota-project <staging project id>`
     * Get access for embedding service running in staging from dev team 
-    * Install gke-gcloud-auth-plugin - `gcloud components install gke-gcloud-auth-plugin`
+    * Install gke-gcloud-auth-plugin
+        ```
+        gcloud components install gke-gcloud-auth-plugin
+        echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> ~/.profile
+        ```
     * Get staging cluster credentials and rename its context to 'staging'
-        ```
-        gcloud container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
-        kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
-        ```
+        * `kubectl config delete-context staging`
+        * Other instructions are present here - https://github.com/zia-ai/backend/tree/dev/dev#google-sdk--auth
 * Synchronize with a timeserver - `sudo timedatectl set-ntp true`
-* Run AIO container `./aio.sh test`
-* To kill connections to embedding service
-    ```
-    sudo lsof -i :8501
-    sudo kill -9 <PID number>
-    ```
+* Run AIO container `EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
+* To kill connections to embedding service - `sudo kill -9 $(sudo lsof -t -i :8501)`
 
 ## Log handling
 * HF SDK logging offers multiple options. Either can save the logs, print them in the console, do both or none
