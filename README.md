@@ -89,6 +89,8 @@ make sure any last minute build changes committed!
 pytest in academy
 
 ## Run AIO container Locally
+***Note: When running the aio container locally, if tests fail because of "Token used before issued" error, then it is caused by clock skew issue where the client and server time is not synchronised. This happens only locally. The circleci works without any issues. Try snchronizing with timeserver using the commands given below.***
+Steps
 * Open WSL ubuntu
 * Make sure docker is working
 * Go to humanfirst-module directory
