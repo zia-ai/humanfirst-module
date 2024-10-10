@@ -153,7 +153,7 @@ test)
         start_aio
     fi
 
-    pytest -s --cov ./humanfirst/ --cov-report term # pytest command
+    pytest --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 
