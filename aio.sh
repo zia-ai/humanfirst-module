@@ -33,12 +33,12 @@ EMBEDDING_K8S_FORWARD=${EMBEDDING_K8S_FORWARD:-1} # if enabled, forward embeddin
 EMBEDDING_K8S_NAMESPACE=${EMBEDDING_K8S_NAMESPACE:-staging2}
 EMBEDDING_SERVICE=${EMBEDDING_SERVICE:-""} # if set, use this address for embeddings
 
-if [ -f "logs/env.log" ]; then
+if [ -f "aio_logs/env.log" ]; then
     echo "removing previous env log"
-    rm logs/env.log
+    rm aio_logs/env.log
 fi
 
-set | grep "^AIO_.*TAG" >> logs/env.log
+set | grep "^AIO_.*TAG" >> aio_logs/env.log
 
 function cleanup {
     if [[ $AIO_STARTED -eq 1 ]]; then
@@ -91,13 +91,13 @@ function start_aio() {
         "gcr.io/trial-184203/backend-aio:$AIO_TAG" \
         "${AIO_ARGS[@]}"
 
-    if [ -f "logs/aio.log" ]; then
+    if [ -f "aio_logs/aio.log" ]; then
         echo "removing previous aio log"
-        rm logs/aio.log
+        rm aio_logs/aio.log
     fi
 
     # send aio logs to file in case of failure
-    docker logs -f aio >logs/aio.log 2>&1 &
+    docker aio_logs -f aio >aio_logs/aio.log 2>&1 &
 
     AIO_STARTED=1
 }
@@ -153,7 +153,7 @@ test)
         start_aio
     fi
 
-    pytest --cov ./humanfirst/ --cov-report term # pytest command
+    pytest -s --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 

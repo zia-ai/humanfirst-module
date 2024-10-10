@@ -53,8 +53,8 @@ DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
 TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
 TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
-TRIGGER_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
-TRIGGER_WAIT_TIME_COUNT = float(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
+TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
+TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
 CONNECTION_SETUP_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","CONNECTION_SETUP_WAIT_TIME"))
 
 # Connection setup wait time
