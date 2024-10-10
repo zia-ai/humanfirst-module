@@ -115,7 +115,13 @@ pytest in academy
         kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
         ```
 * To kill existing connections to embedding service - `sudo kill -9 $(sudo lsof -t -i :8501)`
-* Synchronize with a timeserver - `sudo timedatectl set-ntp true`
+* Synchronize with a timeserver
+    ```
+    timedatectl status
+    sudo timedatectl set-ntp true
+    sudo systemctl restart systemd-timesyncd
+    timedatectl status
+    ```
 * Run AIO container `EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
 
 
