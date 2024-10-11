@@ -33,7 +33,11 @@ jobs:
           name: dependencies
           command: |
             sudo apt update
-            sudo apt install -y docker 
+            sudo apt install -y docker
+            sudo apt-get install systemd-timesyncd -y
+            sudo systemctl enable systemd-timesyncd -y
+            sudo systemctl start systemd-timesyncd -y
+            sudo apt-get install ntpdate -y
             sudo apt-get install net-tools -y
             mkdir -p aio-logs
       - gcp-cli/setup:
