@@ -35,8 +35,8 @@ jobs:
             sudo apt update
             sudo apt install -y docker
             sudo apt-get install systemd-timesyncd -y
-            sudo systemctl enable systemd-timesyncd -y
-            sudo systemctl start systemd-timesyncd -y
+            sudo systemctl enable systemd-timesyncd
+            sudo systemctl start systemd-timesyncd
             sudo apt-get install ntpdate -y
             sudo apt-get install net-tools -y
             mkdir -p aio-logs
