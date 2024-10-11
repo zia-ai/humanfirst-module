@@ -35,7 +35,7 @@ jobs:
             sudo apt update
             sudo apt install -y docker 
             sudo apt-get install net-tools -y
-            mkdir -p logs
+            mkdir -p aio-logs
       - gcp-cli/setup:
           use_oidc: true
           components: docker-credential-gcr kubectl --quiet
@@ -45,7 +45,7 @@ jobs:
           pkg-manager: pip
       - run:
           name: Start AIO container and run tests
-          command: EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test
+          command: sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test
 
 workflows:
   test-aio: 

@@ -44,6 +44,7 @@ function cleanup {
     if [[ $AIO_STARTED -eq 1 ]]; then
         echo "Stopping AIO..."
         docker rm -f aio || true
+        sudo kill -9 $(sudo lsof -t -i :8501) || true &>/dev/null
     fi
 
 }
@@ -106,8 +107,8 @@ function start_aio() {
 EMBEDDINGS_PID=0
 function k8s_forward_embeddings() {
     echo "Forwarding embeddings..."
-    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" get deployment/embeddings # try to get deployment first, it will fail if something isn't configured
-    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" port-forward deployment/embeddings 8501:50051 --address 0.0.0.0 &
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" get deployment/embeddings &>/dev/null # try to get deployment first, it will fail if something isn't configured
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" port-forward deployment/embeddings 8501:50051 --address 0.0.0.0 &>/dev/null &
     EMBEDDINGS_PID=$!
 }
 

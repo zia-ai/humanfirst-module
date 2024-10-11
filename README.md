@@ -102,8 +102,8 @@ Steps
     * Install gcloud - https://cloud.google.com/sdk/docs/install
     * Authenticate - `gcloud auth application-default login`
     * Authenticate for Docker - `gcloud auth configure-docker`
-    * Set project using gcloud - `gcloud config set project <staging project id>`
-    * Set quota for the project - `gcloud auth application-default set-quota-project <staging project id>`
+    * Set project using gcloud - `gcloud config set project trial-184203`
+    * Set quota for the project - `gcloud auth application-default set-quota-project trial-184203`
     * Get access for embedding service running in staging from dev team 
     * Install gke-gcloud-auth-plugin
         ```
@@ -117,14 +117,8 @@ Steps
         kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
         ```
 * To kill existing connections to embedding service - `sudo kill -9 $(sudo lsof -t -i :8501)`
-* Synchronize with a timeserver
-    ```
-    timedatectl status
-    sudo timedatectl set-ntp true
-    sudo systemctl restart systemd-timesyncd
-    timedatectl status
-    ```
-* Run AIO container `EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
+* Install ntpdate. Helps in synchronizing with timeserver - `sudo apt-get install ntpdate`
+* Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
 
 
 ## Log handling

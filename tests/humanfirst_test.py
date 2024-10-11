@@ -62,7 +62,7 @@ CONNECTION_SETUP_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","CONNECTIO
 
 # Connection setup wait time
 # Need this to prevent connection issues
-time.sleep(CONNECTION_SETUP_WAIT_TIME)
+# time.sleep(CONNECTION_SETUP_WAIT_TIME)
 def _create_playbook(hf_api: humanfirst.apis,
                      namespace: str,
                      playbook_name:  str):
