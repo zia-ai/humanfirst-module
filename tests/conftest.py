@@ -29,7 +29,7 @@ else:
                 ],
                     check=True,
                     stdout=subprocess.DEVNULL,  # Suppress standard output
-                    # stderr=subprocess.DEVNULL  # Supress standard error message
+                    stderr=subprocess.PIPE  # Capture standard error
                 )
                 # If successful, break out of the retry loop
                 return
