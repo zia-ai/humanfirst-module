@@ -29,17 +29,22 @@ ENV=${ENV:-"aio"}
 # if set, don't mount ~/.config/gcloud, but use service account specified in this file
 GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-""}
 
-if [ -f "logs/env.log" ]; then
+EMBEDDING_K8S_FORWARD=${EMBEDDING_K8S_FORWARD:-1} # if enabled, forward embedding service from a k8s deployment
+EMBEDDING_K8S_NAMESPACE=${EMBEDDING_K8S_NAMESPACE:-staging2}
+EMBEDDING_SERVICE=${EMBEDDING_SERVICE:-""} # if set, use this address for embeddings
+
+if [ -f "aio_logs/env.log" ]; then
     echo "removing previous env log"
-    rm logs/env.log
+    rm aio_logs/env.log
 fi
 
-set | grep "^AIO_.*TAG" >> logs/env.log
+set | grep "^AIO_.*TAG" >> aio_logs/env.log
 
 function cleanup {
     if [[ $AIO_STARTED -eq 1 ]]; then
         echo "Stopping AIO..."
         docker rm -f aio || true
+        sudo kill -9 $(sudo lsof -t -i :8501) || true &>/dev/null
     fi
 
 }
@@ -51,6 +56,15 @@ function start_aio() {
 
     DOCKER_ARGS=(-p "${AIO_PORT}:8888")
     AIO_ARGS=()
+
+    if [[ -n "$EMBEDDING_SERVICE" ]]; then
+        DOCKER_ARGS=("${DOCKER_ARGS[@]}" -e "EMBEDDINGS_SERVICE=${EMBEDDING_SERVICE}")
+    elif [[ -n "$EMBEDDING_K8S_FORWARD" ]]; then
+        DOCKER_ARGS=("${DOCKER_ARGS[@]}" -e "EMBEDDINGS_SERVICE=${HOST_ADDRESS}:8501")
+    else
+        echo "No embeddings address specified"
+        exit 1
+    fi
 
     if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]]; then
         cp "$GOOGLE_APPLICATION_CREDENTIALS" "$HOME/.config/gcloud/application_default_credentials.json"
@@ -78,15 +92,24 @@ function start_aio() {
         "gcr.io/trial-184203/backend-aio:$AIO_TAG" \
         "${AIO_ARGS[@]}"
 
-    if [ -f "logs/aio.log" ]; then
+    if [ -f "aio_logs/aio.log" ]; then
         echo "removing previous aio log"
-        rm logs/aio.log
+        rm aio_logs/aio.log
     fi
 
     # send aio logs to file in case of failure
-    docker logs -f aio >logs/aio.log 2>&1 &
+    docker aio_logs -f aio >aio_logs/aio.log 2>&1 &
 
     AIO_STARTED=1
+}
+
+
+EMBEDDINGS_PID=0
+function k8s_forward_embeddings() {
+    echo "Forwarding embeddings..."
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" get deployment/embeddings &>/dev/null # try to get deployment first, it will fail if something isn't configured
+    kubectl -n "${EMBEDDING_K8S_NAMESPACE}" port-forward deployment/embeddings 8501:50051 --address 0.0.0.0 &>/dev/null &
+    EMBEDDINGS_PID=$!
 }
 
 function validate_test_params() {
@@ -123,15 +146,22 @@ COMMAND=${1:-test}
 case $COMMAND in
 test)
     # validate_test_params
+    
+    if [[ $EMBEDDING_K8S_FORWARD -eq 1 ]]; then
+        k8s_forward_embeddings
+    fi
     if [[ $AIO_START -eq 1 ]]; then
         start_aio
     fi
 
-    pytest -k test_conversation_set_functionalities -s --cov ./humanfirst/ --cov-report term # pytest command
+    pytest --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 
 start-aio)
+    if [[ $EMBEDDING_K8S_FORWARD -eq 1 ]]; then
+        k8s_forward_embeddings
+    fi
 
     start_aio
     echo "Press any key to stop AIO..."

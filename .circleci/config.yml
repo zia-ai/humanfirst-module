@@ -12,12 +12,17 @@ executors:
 
 commands:
   gcloud-sdk:
-    description: 'Install and configure gcoud sdk'
+    description: 'Install and configure gcloud sdk'
     steps:
       - run: |
           gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
           gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
           gcloud --quiet auth configure-docker
+          gcloud --quiet components install gke-gcloud-auth-plugin
+          echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> ~/.profile
+          gcloud --quiet container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
+          kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
+
 
 jobs:
   build-and-test:
@@ -28,9 +33,13 @@ jobs:
           name: dependencies
           command: |
             sudo apt update
-            sudo apt install -y docker 
+            sudo apt install -y docker
+            sudo apt-get install systemd-timesyncd -y
+            sudo systemctl enable systemd-timesyncd
+            sudo systemctl start systemd-timesyncd
+            sudo apt-get install ntpdate -y
             sudo apt-get install net-tools -y
-            mkdir -p logs
+            mkdir -p aio-logs
       - gcp-cli/setup:
           use_oidc: true
           components: docker-credential-gcr kubectl --quiet
@@ -40,7 +49,7 @@ jobs:
           pkg-manager: pip
       - run:
           name: Start AIO container and run tests
-          command: AIO_START=1 ./aio.sh test
+          command: sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test
 
 workflows:
   test-aio: 

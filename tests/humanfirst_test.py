@@ -2,6 +2,9 @@
 
 Humanfirst tests
 
+When running the aio container locally, if tests fail because of "Token used before issued" error,
+    then it is caused by clock skew issue where the client and server time is not synchronised.
+    This happens only locally. The circleci works without any issues.
 """
 # ***************************************************************************80**************************************120
 
@@ -53,8 +56,8 @@ DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
 TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
 TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
-TRIGGER_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
-TRIGGER_WAIT_TIME_COUNT = float(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
+TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
+TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
 
 
 def _create_playbook(hf_api: humanfirst.apis,
@@ -101,7 +104,7 @@ def test_playbook_creation_deletion():
     # create a playbook
     playbook_id = _create_playbook(hf_api,
                             namespace=TEST_NAMESPACE,
-                            playbook_name="test link-unlink dataset")
+                            playbook_name="test playbook creation")
     
     try:
         assert "playbook-" in playbook_id
@@ -899,7 +902,7 @@ def test_batch_predict():
         predictions = hf_api.batchPredict(sentences=big_sentences, 
                             namespace=TEST_NAMESPACE,
                             playbook=playbook_id,
-                            timeout=1)
+                            timeout=0.1)
     except Exception as e:
         timeout_exception = e
     assert timeout_exception != ""
