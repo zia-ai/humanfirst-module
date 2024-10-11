@@ -58,11 +58,8 @@ TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_
 TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
 TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
 TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
-CONNECTION_SETUP_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","CONNECTION_SETUP_WAIT_TIME"))
 
-# Connection setup wait time
-# Need this to prevent connection issues
-# time.sleep(CONNECTION_SETUP_WAIT_TIME)
+
 def _create_playbook(hf_api: humanfirst.apis,
                      namespace: str,
                      playbook_name:  str):
