@@ -12,10 +12,11 @@ HelloWorld
 * install requirements  `pip install -r requirements.txt --no-cache`
 
 ## Using pytest to test everything is working fine
-`pytest --cov ./humanfirst/ --cov-report html --cov-report term`
+`SKIP_CONFTEST=1 pytest --cov ./humanfirst/ --cov-report html --cov-report term`
 --cov-report html - produces a report in HTML page
 --cov-report term - prints the report in console
 --cov-report term:skip-covered - helps to see uncovered parts
+SKIP_CONFTEST=1 - prevents slow synchronization with time server which is required only for running AIO containers locally.
 
 ## Build packages
 
