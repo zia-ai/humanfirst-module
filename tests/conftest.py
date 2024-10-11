@@ -30,8 +30,7 @@ def synchronize_time():
         except subprocess.CalledProcessError as e:
             # Check if the error is related to rate limiting
             error_message = e.stderr.decode('utf-8').strip()
-            print(error_message)
-            if "no server suitable for synchronization found" in error_message:
+            if "rate limit response from server" in error_message:
                 print(f"Rate limit hit, retrying... (Attempt {attempt + 1}/{max_retries})")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s...
             else:
