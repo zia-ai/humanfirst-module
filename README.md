@@ -90,7 +90,14 @@ make sure any last minute build changes committed!
 pytest in academy
 
 ## Run AIO container Locally
-***Note: When running the aio container locally, if tests fail because of "Token used before issued" error, then it is caused by clock skew issue where the client and server time is not synchronised. This happens only locally. The circleci works without any issues. Try snchronizing with timeserver using the commands given below.***
+**Wonkies**
+
+***1: When running the aio container locally, if tests fail because of "Token used before issued" error, then it is caused by clock skew issue where the client and server time is not synchronised. This happens only locally. The circleci works without any issues.***
+
+***2: If you run aio container locally on test environment, immediately after you run normal pytest in terminal (not using aio) on staging or prod environment, few tests related to APIs would fail on clock skew issue even though synchronization is performed. In this case giving a resting period of 10 mins or more and then running aio container on test environment proves to work***
+
+***3: Still getting clock skew issue when running aio container locally on test environment, don't sweat. Run pytest commands locally on staging (command is given above) and commit your changes to git after all the tests passes. CircleCI would run everything without any issues on test environment on the latest dev branch***
+
 Steps
 * Open WSL ubuntu
 * Make sure docker is working
@@ -113,6 +120,7 @@ Steps
         ```
     * Get staging cluster credentials and rename its context to 'staging'
         ```
+        gcloud components install kubectl
         kubectl config delete-context staging
         gcloud container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
         kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
