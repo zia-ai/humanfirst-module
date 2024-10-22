@@ -199,10 +199,14 @@ This runs the container
 
 TODO: confirm this
 
-GEt the aio.sh script here
+GEt the aio.sh script here - TODO: couldn't work out an elegant way
+https://github.com/zia-ai/e2e-testing/blob/dev/aio.sh
+chmod it if you need to allow x
+
+None of these work TODO
 `git archive --remote=ssh://zia-ai/e2e-testing.git HEAD aio.sh | tar xO`
 `git archive --remote=git://git.foo.com/project.git HEAD:path/to/directory filename | tar -x`
-`git archive --remote=git@github.com:zia-ai/e2e-testing.git dev:. aio.sh | tar -x`
+`git archive --remote=ssh://github.com/zia-ai/e2e-testing.git dev aio.sh | tar -x`
 
 Old test command
 * Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
@@ -211,7 +215,9 @@ Make sure you have nettools
 * `sudo apt-get install net-tools`
 
 Pull the container down and start it the container
-* Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh start-aio`
+* Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh start`
+
+* Stop AIO container `./aio.sh stop`
 
 TODO: How to know which image it is pulling
 aio.sh: "docker pull "gcr.io/trial-184203/backend-aio:$AIO_TAG" # fetch sync"
