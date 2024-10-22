@@ -1,9 +1,6 @@
 # humanfirst-module
 Humanfirst module package
 
-## Class List
-HelloWorld
-
 ## Virtual Environment
 * Remove any previously created virtual env `rm -rf ./venv`
 * Create virtualenv & activate `python3 -m venv venv` 
@@ -12,11 +9,43 @@ HelloWorld
 * install requirements  `pip install -r requirements.txt --no-cache`
 
 ## Using pytest to test everything is working fine
+
+First you need to decide if you are going to test locally or against staging/prod.
+Start with staging and production.
+
+Set your HF_USERNAME and HF_PASSWORD env variable to match the environment you wish to test against.
+
+For running against staging or production time synchronisation is not necessary `SKIP_CONFTEST=1` is an environment variable which prevents that running by skipping all of conftest.py.  For running on an AIO container locally it is.
+
+### running on production
+
+This is the default.
+
 `SKIP_CONFTEST=1 pytest --cov ./humanfirst/ --cov-report html --cov-report term`
 --cov-report html - produces a report in HTML page
 --cov-report term - prints the report in console
 --cov-report term:skip-covered - helps to see uncovered parts
 SKIP_CONFTEST=1 - prevents slow synchronization with time server which is required only for running AIO containers locally.
+
+### Running on staging
+
+Switch environment variable `HF_ENVIRONMENT` = "staging"
+
+Reset `HF_USERNAME` and `HF_PASSWORD` to be the relevant staging values.
+
+To check are running on staging set `HF_LOG_CONSOLE_ENABLE` = TRUE and `HF_LOG_LEVEL` = DEBUG
+
+Start the test again but with the console output printed
+`SKIP_CONFTEST=1 pytest --cov ./humanfirst/ --cov-report html --cov-report term -s`
+
+You should see it calling `https://api-staging.humanfirst.ai:443` in the logs
+
+### Running on AIO container
+
+Doing this requires the ability to run docker commands.  Check docker is working with 
+`docker run hello-world` or `sudo docker run hello-world` depending on whether you have a user or root docker setup.
+
+You may need to run this from outside your local academy workbench
 
 ## Build packages
 
@@ -90,7 +119,10 @@ make sure any last minute build changes committed!
 pytest in academy
 
 ## Run AIO container Locally
-**Wonkies**
+
+In development and CI/CD the tests are run against a locally running AIO container with the backend elements of HF solution running.  If external to HF you will not be able to run these steps.
+
+**Caveats**
 
 ***1: When running the aio container locally, if tests fail because of "Token used before issued" error, then it is caused by clock skew issue where the client and server time is not synchronised. This happens only locally. The circleci works without any issues.***
 
@@ -98,36 +130,71 @@ pytest in academy
 
 ***3: Still getting clock skew issue when running aio container locally on test environment (Less likely scenario), don't sweat. Run pytest commands locally on staging (command is given above) and commit your changes to git after all the tests passes. CircleCI would run everything without any issues on test environment on the latest dev branch***
 
-Steps
+
+
+<!-- Steps
+TODO: Rremove me moved to Docker
 * Open WSL ubuntu
-* Make sure docker is working
+* Make sure docker is working `docker run hello-world`
 * Go to humanfirst-module directory
-* Create virtualenv & activate `python3 -m venv ubuntu-venv` 
+* Create a separate virtualenv & activate `python3 -m venv ubuntu-venv` 
 * if bash shell `source venv/bin/activate` **In case of deactivating use "deactivate"**
 * Update PiP `python -m pip install --upgrade pip`
-* install requirements  `pip install -r requirements.txt --no-cache`
+* install requirements  `pip install -r requirements.txt --no-cache` -->
 * Google SDK + auth - https://github.com/zia-ai/backend/tree/dev/dev#google-sdk--auth
     * Install gcloud - https://cloud.google.com/sdk/docs/install
+    * `sudo apt-get install apt-transport-https ca-certificates gnupg curl`
+    * `curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg`
+    * `echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list`
+    * `sudo apt-get update && sudo apt-get install google-cloud-cli`
+
     * Authenticate - `gcloud auth application-default login`
     * Authenticate for Docker - `gcloud auth configure-docker`
     * Set project using gcloud - `gcloud config set project trial-184203`
     * Set quota for the project - `gcloud auth application-default set-quota-project trial-184203`
     * Get access for embedding service running in staging from dev team 
     * Install gke-gcloud-auth-plugin
-        ```
-        gcloud components install gke-gcloud-auth-plugin
-        echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> ~/.profile
-        ```
+    * `sudo apt-get install google-cloud-cli-gke-gcloud-auth-plugin`
+    * enable the plugin
+    * `echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> ~/.profile`
     * Get staging cluster credentials and rename its context to 'staging'
-        ```
-        gcloud components install kubectl
-        kubectl config delete-context staging
-        gcloud container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
-        kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
-        ```
+    * `sudo apt-get install kubectl`
+    * `kubectl config delete-context staging`
+    * `gcloud auth login`
+
+TODO: got this far and then couldn't seem to progress.
+
+Have added a deterministic docker build for the Python
+
+Get crednetials and end point
+* `gcloud container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203`
+
+Rename to staging.
+* `kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging`
+
+Check nothing is running 
 * To kill existing connections to embedding service - `sudo kill -9 $(sudo lsof -t -i :8501)`
+
+Timeserver
 * Install ntpdate. Helps in synchronizing with timeserver - `sudo apt-get install ntpdate`
+
+This runs the container
+
+TODO: confirm this
+
+Old test command
 * Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
+
+Make sure you have nettools
+* `sudo apt-get install net-tools`
+
+Pull the container down and start it the container
+* Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh start-aio`
+
+TODO: How to know which image it is pulling
+aio.sh: "docker pull "gcr.io/trial-184203/backend-aio:$AIO_TAG" # fetch sync"
+So have to modify $AIO_TAG - currently "dev" - could also set to any branch
+* Just latest from Dev pipeline
 
 
 ## Log handling

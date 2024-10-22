@@ -16,6 +16,8 @@ if [[ "$HOST_ADDRESS" == "" ]]; then
     exit 1
 fi
 
+echo "Host address: $HOST_ADDRESS"
+
 # control if and how we want to start the all-in-one backend
 AIO_START=${AIO_START:-1}
 AIO_TAG=${AIO_TAG_OVERRIDE:-${AIO_TAG:-dev}} # if want to use particular branch, set branch name here
@@ -87,7 +89,7 @@ function start_aio() {
     docker rm -f aio 2&> /dev/null || true # remove previous container if exists
 
     docker run --name aio -d \
-        -p 50051:50051 \
+        -p 50051:50051 -p 8889:8888 \
         "${DOCKER_ARGS[@]}" \
         "gcr.io/trial-184203/backend-aio:$AIO_TAG" \
         "${AIO_ARGS[@]}"
@@ -154,7 +156,8 @@ test)
         start_aio
     fi
 
-    pytest --cov ./humanfirst/ --cov-report term # pytest command
+    # TODO: Why?  Why here outside of container?
+    # pytest --cov ./humanfirst/ --cov-report term # pytest command
 
     ;;
 
