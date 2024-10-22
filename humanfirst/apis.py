@@ -35,7 +35,7 @@ EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
-BASE_URL_TEST = constants.get("humanfirst.CONSTANTS","BASE_URL_TEST")
+# BASE_URL_TEST must be set by environment variable
 BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
@@ -230,11 +230,16 @@ class HFAPI:
             self.api_version = api_version
 
         # by default the url points to prod
+        # This case section sets the Key used to authenticate with the GCP key issuing server
+        # and the URL of the humanfirst environment
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
             self.identity_api_key = PROD_SIGN_IN_API_KEY
+        # This option assumes you are running a container locally
+        # In this case the IP address must be set as a Env variable
+        # BASE_URL_TEST
         elif self.studio_environment == "test":
-            self.base_url = BASE_URL_TEST
+            self.base_url = os.environ.get("BASE_URL_TEST")
             self.identity_api_key = TEST_SIGN_IN_API_KEY
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
@@ -247,7 +252,7 @@ class HFAPI:
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the follwoing - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
 
         # Check if URL ends with /
         if self.base_url[-1] == "/":

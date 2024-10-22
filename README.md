@@ -1,6 +1,9 @@
 # humanfirst-module
 Humanfirst module package
 
+# Docker build for this module
+* `docker build . -t humanfirst-module:latest --no-cache`
+
 ## Virtual Environment
 * Remove any previously created virtual env `rm -rf ./venv`
 * Create virtualenv & activate `python3 -m venv venv` 

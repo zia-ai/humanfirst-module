@@ -59,8 +59,10 @@ TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RU
 TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
 TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
 
+# Which environment the test is running on is signficant.
+print(f'Running test on HF_ENVIRONMENT={os.environ.get("HF_ENVIRONMENT")}')
 
-def _create_playbook(hf_api: humanfirst.apis,
+def _create_playbook(hf_api: humanfirst.apis.HFAPI,
                      namespace: str,
                      playbook_name:  str):
     """creates playbook"""
@@ -80,8 +82,7 @@ def _create_playbook(hf_api: humanfirst.apis,
 
     return playbook_id
 
-
-def _del_playbook(hf_api: humanfirst.apis,
+def _del_playbook(hf_api: humanfirst.apis.HFAPI,
                   namespace: str,
                   playbook_id:  str):
     """Delete Playbook"""
@@ -96,6 +97,18 @@ def _del_playbook(hf_api: humanfirst.apis,
         if playbook_id == list_pb[i]["etcdId"]:
             valid_playbook_id = True
     assert valid_playbook_id is False
+    
+def test_list_playbooks():
+    """Tests listing the playbooks in an environment"""
+    hf_api = humanfirst.apis.HFAPI()
+    print(f'Test namespace is: {TEST_NAMESPACE}')
+    list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    if len(list_pb) == 0:
+        print(f'No playbooks')
+    # Otherwise going to get a neat list
+    else:
+        df_pbs = pandas.json_normalize(list_pb)
+        print(df_pbs[["namespace","playbookName","etcdId"]])
 
 def test_playbook_creation_deletion():
     """test_playbook_creation_deletion"""
