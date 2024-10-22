@@ -169,3 +169,6 @@ package_test.py
 # CI/CD related ignores
 ubuntu-venv
 ubuntu-venv/*
+
+# AIO for internal HF testing
+aio.sh

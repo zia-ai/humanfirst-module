@@ -35,7 +35,7 @@ EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
-# BASE_URL_TEST must be set by environment variable
+# BASE_URL_TEST must be set by environment variable expected of the form BASE_URL_TEST=http://172.17.0.3:8888
 BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")

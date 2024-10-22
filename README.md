@@ -3,6 +3,20 @@ Humanfirst module package
 
 # Docker build for this module
 * `docker build . -t humanfirst-module:latest --no-cache`
+To run the tests for this module we pass through the necessary env variables
+`echo $HF_ENVIRONMENT $BASE_URL_TEST $HF_USERNAME $HF_PASSWORD $SKIP_CONFTEST`
+
+```sh
+docker run \
+-e "HF_ENVIRONMENT=$HF_ENVIRONMENT" \
+-e "BASE_URL_TEST=$BASE_URL_TEST" \
+-e "HF_USERNAME=$HF_USERNAME" \
+-e "HF_PASSWORD=$HF_PASSWORD" \
+-e "SKIP_CONFTEST=1" \
+--name humanfirst-module-0 \
+humanfirst-module \
+pytest -s --cov ./humanfirst/ --cov-report term
+```
 
 ## Virtual Environment
 * Remove any previously created virtual env `rm -rf ./venv`
@@ -184,6 +198,11 @@ Timeserver
 This runs the container
 
 TODO: confirm this
+
+GEt the aio.sh script here
+`git archive --remote=ssh://zia-ai/e2e-testing.git HEAD aio.sh | tar xO`
+`git archive --remote=git://git.foo.com/project.git HEAD:path/to/directory filename | tar -x`
+`git archive --remote=git@github.com:zia-ai/e2e-testing.git dev:. aio.sh | tar -x`
 
 Old test command
 * Run AIO container `sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test`
