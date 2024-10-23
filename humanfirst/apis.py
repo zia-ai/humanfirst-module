@@ -15,6 +15,7 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
+import time
 
 # third party imports
 import requests
@@ -28,6 +29,8 @@ here = os.path.abspath(os.path.dirname(__file__))
 constants = ConfigParser()
 path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
+
+CLOCK_SYNC_DRIFT_AMBIGUITY = 0
 
 # constants need type conversion from str to int
 TIMEOUT = int(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
@@ -958,8 +961,12 @@ class HFAPI:
 
         logger.info("Current time: %s",now)
         logger.info('Token Creation time: %s',self.bearer_token["datetime"])
+        logger.info(self.bearer_token)        
         logger.info("Time Difference: %s",time_diff)
         logger.info('Token status: %s',self.bearer_token["status"])
+        if time_diff.seconds < CLOCK_SYNC_DRIFT_AMBIGUITY:
+            time.sleep(CLOCK_SYNC_DRIFT_AMBIGUITY)
+            logger.info(f'Waiting: {CLOCK_SYNC_DRIFT_AMBIGUITY}')
         time_diff = time_diff.seconds + EXPIRY_ADDITION
 
         # adding 60 sec to the time difference to check if ample amount of time is left for using the token
@@ -971,6 +978,7 @@ class HFAPI:
                 "bearer_token": refresh_response["id_token"],
                 "refresh_token": refresh_response["refresh_token"],
                 "expires_in": int(refresh_response["expires_in"]),
+                # TODO: this is the time now - not the time of creation - that needs to decode the JWT to get
                 "datetime": datetime.datetime.now(),
                 "status": VALID
             }
@@ -1010,6 +1018,9 @@ class HFAPI:
         if auth_response.status_code != 200:
             raise HFAPIAuthException(
                 f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
+        # sleep for 10th second to account for slight clock drifts with the GCP server
+        print("DARNIT")
+        time.sleep(0.01)
         return auth_response.json()
 
     def _refresh_bearer_token(self):

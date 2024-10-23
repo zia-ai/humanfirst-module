@@ -234,7 +234,7 @@ So have to modify $AIO_TAG - currently "dev" - could also set to any branch
     * Can go to upto 4 additional log files
     * If the number of log files exceed the additional log file count + 1, then automatically the oldest log file is gets replaced with new log information
 * Can set log levels using HF_LOG_LEVEL. Accepts - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' 
-* To print the logs in console set HF_LOG_CONSOLE_ENABLE to 'TRUE'
+* To print the logs in console set exp to 'TRUE'
 * Default - the logs are neither saved nor printed onto console
 
 ***Note: Control what files can go into SDK using Manifest.in file***
