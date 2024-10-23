@@ -171,4 +171,4 @@ ubuntu-venv
 ubuntu-venv/*
 
 # AIO for internal HF testing
-./aio.sh
+*aio.sh*
