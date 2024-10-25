@@ -33,7 +33,7 @@ constants.read(path_to_config_file)
 CLOCK_SYNC_DRIFT_AMBIGUITY = 0
 
 # constants need type conversion from str to int
-TIMEOUT = int(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
+TIMEOUT = float(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
 EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
@@ -185,7 +185,8 @@ class HFAPI:
     def __init__(self, username: str = "",
                  password: str = "",
                  environment: str = "",
-                 api_version: str = ""):
+                 api_version: str = "",
+                 timeout: float = TIMEOUT):
         """
         Initializes bearertoken
 
@@ -231,6 +232,8 @@ class HFAPI:
             if api_version is None:
                 api_version = "v1alpha1"
             self.api_version = api_version
+
+        self.timeout = timeout
 
         # by default the url points to prod
         # This case section sets the Key used to authenticate with the GCP key issuing server
@@ -326,7 +329,7 @@ class HFAPI:
     # Tags
     # *****************************************************************************************************************
 
-    def get_tags(self, namespace: str, playbook: str) -> dict:
+    def get_tags(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns tags'''
         payload = {
             "namespace": namespace,
@@ -336,11 +339,12 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "tags")
 
-    def delete_tag(self, namespace: str, playbook: str, tag_id: str) -> dict:
+    def delete_tag(self, namespace: str, playbook: str, tag_id: str, timeout: float = None) -> dict:
         '''Returns tags'''
         payload = {
             "namespace": namespace,
@@ -351,12 +355,14 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags/{tag_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def create_tag(self, namespace: str, playbook: str,
-                tag_id: str, tag_name: str, tag_color: str) -> dict:
+                tag_id: str, tag_name: str, tag_color: str,
+                timeout: float = None) -> dict:
         '''Create a tag'''
 
         now = datetime.datetime.now()
@@ -377,15 +383,16 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     # *****************************************************************************************************************
     # Playbooks/Workspaces
     # *****************************************************************************************************************
 
-    def create_playbook(self, namespace: str, playbook_name: str) -> dict:
+    def create_playbook(self, namespace: str, playbook_name: str, timeout: float = None) -> dict:
         '''
         Creates a playbook in the given namespace
 
@@ -399,11 +406,12 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks(self, namespace: str) -> dict:
+    def list_playbooks(self, namespace: str, timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering'''
         payload = {
@@ -413,11 +421,12 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def get_playbook_info(self, namespace: str, playbook: str) -> dict:
+    def get_playbook_info(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns metadata of playbook'''
         payload = {
             "namespace": namespace,
@@ -427,8 +436,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def get_playbook(self,
@@ -437,7 +447,8 @@ class HFAPI:
                     hierarchical_delimiter="-",
                     hierarchical_intent_name_disabled: bool = True,
                     zip_encoding: bool = False,
-                    include_negative_phrases: bool = False
+                    include_negative_phrases: bool = False, 
+                    timeout: float = None
                     ) -> dict:
         '''Returns the actual training information including where present in the workspace
         * intents
@@ -460,15 +471,16 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/export'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         response = self._validate_response(response, url, "data")
         response = base64.b64decode(response)
         response = response.decode('utf-8')
         response_dict = json.loads(response)
         return response_dict
 
-    def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False) -> dict:
+    def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False, timeout: float = None) -> dict:
         '''
         Delete the playbook provided
 
@@ -484,15 +496,16 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
     # *****************************************************************************************************************
     # Intents
     # *****************************************************************************************************************
 
-    def get_intents(self, namespace: str, playbook: str) -> dict:
+    def get_intents(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get all the intents in a workspace'''
         payload = {
             "namespace": namespace,
@@ -502,12 +515,13 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "intents")
 
 
-    def get_intent(self, namespace: str, playbook: str, intent_id: str) -> dict:
+    def get_intent(self, namespace: str, playbook: str, intent_id: str, timeout: float = None) -> dict:
         '''Get the metdata for the intent needed'''
         payload = {
             "namespace": namespace,
@@ -517,12 +531,13 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/{intent_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
-    def get_revisions(self, namespace: str, playbook: str,) -> dict:
+    def get_revisions(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get revisions for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -532,11 +547,12 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/revisions'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "revisions")
 
-    def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str) -> dict:
+    def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str, timeout: float = None) -> dict:
         '''Update an intent
 
         *update_mask = <keywords used in an intent hf format>
@@ -552,8 +568,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "PUT", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def import_intents(
@@ -576,7 +593,8 @@ class HFAPI:
             # extra_intent_tags: list = None,
             # extra_phrase_tags: list = None,
             override_metadata: bool = True,
-            override_name: bool = True
+            override_name: bool = True,
+            timeout: float = None
         ) -> dict:
         """Import intents using multipart assuming an input humanfirst JSON file
 
@@ -627,8 +645,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/import'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def import_intents_http(
@@ -637,7 +656,8 @@ class HFAPI:
             workspace_file_path: str, # or union HFWorkspace
             # format_int: int = 7,
             hierarchical_intent_name_disabled: bool = True,
-            hierarchical_delimiter: str = "/"
+            hierarchical_delimiter: str = "/",
+            timeout: float = None
             # zip_encoding: bool = False,
             # gzip_encoding: bool = False,
             # clear_intents: bool = False,
@@ -698,8 +718,9 @@ class HFAPI:
         headers["Content-Type"] = payload.content_type
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/import_http'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
@@ -707,7 +728,7 @@ class HFAPI:
     # Call NLU engines
     # *****************************************************************************************************************
 
-    def get_models(self, namespace: str) -> dict:
+    def get_models(self, namespace: str, timeout: float = None) -> dict:
         '''Get available models for a namespace
         NOTE: THIS IS NOT nlu-id!'''
         payload = {}
@@ -715,8 +736,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/models'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         models = self._validate_response(response, url, "models")
         namespace_models = []
         for model in models:
@@ -725,7 +747,7 @@ class HFAPI:
         return namespace_models
 
 
-    def get_nlu_engines(self, namespace: str, playbook: str) -> dict:
+    def get_nlu_engines(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get nlu engines for the for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -735,12 +757,13 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/nlu_engines'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "nluEngines")
 
 
-    def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str) -> dict:
+    def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str, timeout: float = None) -> dict:
         '''Get nlu engine for the for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -751,11 +774,12 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/nlu_engines/{nlu_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def list_trained_nlu(self, namespace: str, playbook: str) -> dict:
+    def list_trained_nlu(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
         payload = {
             "namespace": namespace,
@@ -765,15 +789,16 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/nlu'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="runs")
 
 
     def trigger_train_nlu(self, namespace: str, playbook: str, nlu_id: str,
                         force_train: bool = True, skip_train: bool= False,
                         force_infer: bool = False, skip_infer: bool = True,
-                        auto: bool = False) -> dict:
+                        auto: bool = False, timeout: float = None) -> dict:
         '''Trigger training for a workspace here we only allow for one request for
         one engine - but theoretically you can call to trigger many on the same
         playbook
@@ -804,14 +829,15 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/nlu:train'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response, url)
 
 
     def predict(self, sentence: str, namespace: str, playbook: str,
-                model_id: str = None, revision_id: str = None) -> dict:
+                model_id: str = None, revision_id: str = None, timeout: float = None) -> dict:
         '''Get response_dict of matches and hier matches for an input
         optionally specify which model and revision ID you want the prediction from
         model_id probably better know as nlu-id
@@ -838,16 +864,17 @@ class HFAPI:
             payload["revision_id"] = model_id
 
         url = f'{self.base_url}/{self.api_version}/nlu/predict/{namespace}/{playbook}'
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
-    def batchPredict(self, sentences: list,
+    def batchPredict(self, sentences: list, # pylint: disable=invalid-name
                      namespace: str,
                      playbook: str,
-                     timeout: int = TIMEOUT) -> dict:  # pylint: disable=invalid-name
+                     timeout: float = None) -> dict:
         '''Get response_dict of matches and hier matches for a batch of sentences
         TODO: model version changes'''
         payload = {
@@ -859,9 +886,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/nlu/predict/{namespace}/{playbook}/batch'
-
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=timeout)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "predictions")
 
     # *****************************************************************************************************************
@@ -872,7 +899,8 @@ class HFAPI:
                                      namespace: str,
                                      playbook: str,
                                      data_selection: int = 1,
-                                     model_id: str = None):
+                                     model_id: str = None,
+                                     timeout: float = None):
         '''Download a set of coverage histogram data at 0.5 confidence clip intervals
         TODO: this is unvalidated in academy
 
@@ -895,9 +923,9 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/coverage/latest'
-
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "report")
 
     def export_intents_coverage(self,
@@ -906,7 +934,8 @@ class HFAPI:
                                 model_id: str = None,
                                 confidence_threshold: int = 70, # This is the default in the GUI
                                 coverage_type: int = 1, # COVERAGE_TYPE_TOTAL
-                                data_selection: int = 1 # DATA_TYPE_ALL
+                                data_selection: int = 1, # DATA_TYPE_ALL
+                                timeout: float = None
                                 ):
         '''Get the coverage calculation at a certain clip returned as a csv file
         This works the same as downloading the coverage report from the intents tab
@@ -942,8 +971,10 @@ class HFAPI:
         params1 = f'&coverage_type={coverage_type}&data_selection={data_selection}'
         url = url + params0 + params1
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, wantcsv=True)
 
 
@@ -966,7 +997,7 @@ class HFAPI:
         logger.info('Token status: %s',self.bearer_token["status"])
         if time_diff.seconds < CLOCK_SYNC_DRIFT_AMBIGUITY:
             time.sleep(CLOCK_SYNC_DRIFT_AMBIGUITY)
-            logger.info(f'Waiting: {CLOCK_SYNC_DRIFT_AMBIGUITY}')
+            logger.info('Waiting: %f', CLOCK_SYNC_DRIFT_AMBIGUITY)
         time_diff = time_diff.seconds + EXPIRY_ADDITION
 
         # adding 60 sec to the time difference to check if ample amount of time is left for using the token
@@ -983,6 +1014,7 @@ class HFAPI:
                 "status": VALID
             }
 
+        headers = {}
         if self.bearer_token["status"] == REFRESHING or self.bearer_token["status"] == EXPIRED:
             headers = {
                 'Content-Type': 'application/json; charset=utf-8',
@@ -999,7 +1031,7 @@ class HFAPI:
         return headers
 
 
-    def _authorize(self, username: str, password: str) -> dict:
+    def _authorize(self, username: str, password: str, timeout: float = None) -> dict:
         '''Get bearer token for a username and password'''
 
         base_url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='
@@ -1013,8 +1045,10 @@ class HFAPI:
             "returnSecureToken": True
         }
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
+            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
         if auth_response.status_code != 200:
             raise HFAPIAuthException(
                 f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
@@ -1023,7 +1057,7 @@ class HFAPI:
         time.sleep(0.01)
         return auth_response.json()
 
-    def _refresh_bearer_token(self):
+    def _refresh_bearer_token(self, timeout: float = None):
         """refreshes bearer token"""
 
         base_url = 'https://securetoken.googleapis.com/v1/token?key='
@@ -1035,8 +1069,11 @@ class HFAPI:
             "refresh_token": self.bearer_token["refresh_token"],
             "grant_type": "refresh_token"
         }
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
+            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
         if auth_response.status_code != 200:
             raise HFAPIAuthException(
                 f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
@@ -1058,7 +1095,7 @@ class HFAPI:
     # Conversation sets
     # *****************************************************************************************************************
 
-    def get_conversation_set_list(self, namespace: str) -> tuple:
+    def get_conversation_set_list(self, namespace: str, timeout: float = None) -> tuple:
         """Get all the conversation sets and their info for a namespaces"""
 
         payload = {}
@@ -1066,8 +1103,11 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"{self.base_url}/{self.api_version}/conversation_sets?namespace={namespace}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
 
         # make it a list looking up each individual one
@@ -1077,7 +1117,7 @@ class HFAPI:
 
             url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
             response = requests.request(
-                "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+                "GET", url, headers=headers, data=payload, timeout=effective_timeout)
             conversation_set = self._validate_response(response=response,url=url)
 
             if "state" in conversation_set.keys():
@@ -1102,7 +1142,7 @@ class HFAPI:
 
         return conversation_set_list
 
-    def get_conversation_set(self, namespace: str, conversation_set_id: str) -> dict:
+    def get_conversation_set(self, namespace: str, conversation_set_id: str, timeout: float = None) -> dict:
         """Get conversation set"""
 
         headers = self._get_headers()
@@ -1112,11 +1152,14 @@ class HFAPI:
             "conversation_set_id":conversation_set_id
         }
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response=response,url=url)
 
-    def create_conversation_set(self, namespace: str, convoset_name: str) -> dict:
+    def create_conversation_set(self, namespace: str, convoset_name: str, timeout: float = None) -> dict:
         """Creates a conversation set. Returns conversation source ID"""
 
         payload = {
@@ -1130,8 +1173,11 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         create_conversation_response = self._validate_response(response=response, url=url)
         convo_set_id = create_conversation_response["id"]
 
@@ -1151,7 +1197,10 @@ class HFAPI:
 
         return conversation_source_id
 
-    def create_conversation_set_with_set_and_src_id(self, namespace: str, convoset_name: str) -> dict:
+    def create_conversation_set_with_set_and_src_id(self,
+                                                    namespace: str,
+                                                    convoset_name: str,
+                                                    timeout: float = None) -> dict:
         """Creates a conversation set. Returns both conversation set and source ID"""
 
         payload = {
@@ -1165,8 +1214,11 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         create_conversation_response = self._validate_response(response=response, url=url)
         convo_set_id = create_conversation_response["id"]
 
@@ -1191,7 +1243,7 @@ class HFAPI:
 
         return conversation_obj
 
-    def link_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str) -> dict:
+    def link_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str, timeout: float = None) -> dict:
         """Link conversation sets"""
 
         payload = {
@@ -1206,12 +1258,15 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:link'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     # TODO: Implement API to get the list of playbook ids a convoset is linked to
-    def unlink_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str) -> dict:
+    def unlink_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str, timeout: float = None) -> dict:
         """Unlink conversation sets"""
 
         # TODO: Unlink convoset from all the linked workspaces
@@ -1228,11 +1283,14 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:unlink'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
+    def delete_conversation_set(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Deletes a conversation_set"""
 
         # TODO: A "force" boolean method parameter
@@ -1246,11 +1304,14 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response, url=url)
 
-    def get_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
+    def get_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Gets conversation set configuration"""
 
         payload = {
@@ -1261,11 +1322,14 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}/config"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response, url=url)
 
-    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str) -> dict:
+    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str, timeout: float = None) -> dict:
         """Get the list of conversation files within a convo set."""
 
         headers = self._get_headers()
@@ -1275,11 +1339,18 @@ class HFAPI:
             "conversation_set_id":conversation_set_src_id
         }
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response=response,url=url,field="files")
 
-    def delete_conversation_file(self, namespace:str,conversation_set_src_id: str,file_name:str):
+    def delete_conversation_file(self,
+                                 namespace:str,
+                                 conversation_set_src_id: str,
+                                 file_name:str,
+                                 timeout: float = None):
         """Deletes a specific file within a convo set."""
 
         headers = self._get_headers()
@@ -1291,12 +1362,13 @@ class HFAPI:
         }
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response,url=url)
 
-    def update_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
+    def update_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Update conversation set configuration"""
 
         payload = {
@@ -1314,9 +1386,11 @@ class HFAPI:
 
         headers = self._get_headers()
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}/config"
         response = requests.request(
-            "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "PUT", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response, url=url)
 
     # *****************************************************************************************************************
@@ -1328,7 +1402,7 @@ class HFAPI:
     #       Implemented a method which returns both convoset and convosrc ids
     #       Meanwhile people who implemented create_conversation_set, need this todo to help them get the convoset id,
     #       which then can be used to delete the set.
-    def get_conversation_source(self, namespace: str, conversation_source_id: str) -> dict:
+    def get_conversation_source(self, namespace: str, conversation_source_id: str, timeout: float = None) -> dict:
         '''Download conversation set'''
         payload = {
             "namespace": namespace
@@ -1338,14 +1412,18 @@ class HFAPI:
 
         # /{self.api_version}/files/{namespace}/{conversation_source_id}/export
         url = f'{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}/export'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
     def upload_json_file_to_conversation_source(self, namespace: str,
                                                 conversation_source_id: str,
                                                 upload_name: str,
-                                                fqfp: str) -> dict:
+                                                fqfp: str,
+                                                timeout: float = None) -> dict:
         '''Upload a JSON file to a conversation source'''
         payload = {
             "namespace": namespace
@@ -1367,8 +1445,11 @@ class HFAPI:
         # This is the magic bit - you must set the content type to include the boundary information
         # multipart encoder makes working these out easier
         headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         upload_file.close()
         return self._validate_response(response, url, "playbooks")
 
@@ -1385,7 +1466,8 @@ class HFAPI:
             convsetsource: str = "",
             next_page_token: str = "",
             start_isodate: str = '1970-01-01T00:00:00Z',
-            end_isodate: str = '2049-12-31T23:59:59Z'
+            end_isodate: str = '2049-12-31T23:59:59Z',
+            timeout: float = None
             ) -> dict:
         '''This will seach a converation set for converations and return
         the examples threaded along with their data like entropy, margin
@@ -1426,8 +1508,11 @@ class HFAPI:
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/conversations/{namespace}/{workspace}/query'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def export_query_conversation_inputs(
@@ -1446,7 +1531,8 @@ class HFAPI:
             dedup_by_hash: bool = False,
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
-            source_kind: int = 2 # DEFAULT TO GENERATED
+            source_kind: int = 2, # DEFAULT TO GENERATED
+            timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
         CSV text file
@@ -1588,16 +1674,22 @@ class HFAPI:
         base_url = f'{self.base_url}/'
         args_url = f'{self.api_version}/conversations/query/inputs/export'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         res = self._validate_response(response, url)
         downloadable_url = f'{self.base_url}{res["exportUrlPath"]}'
         return self._download_file_from_url(downloadable_url, download_format)
 
-    def _download_file_from_url(self, url: str, download_format: int) -> dict:
+    def _download_file_from_url(self, url: str, download_format: int, timeout: float = None) -> dict:
         """Download file from url"""
         headers = self._get_headers()
-        downloaded_json = requests.request("GET", url, headers=headers, timeout=TIMEOUT)
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        downloaded_json = requests.request("GET", url, headers=headers, timeout=effective_timeout)
         if download_format == 1: #JSON
             return downloaded_json.json()
         elif download_format == 2: #CSV
@@ -1612,7 +1704,7 @@ class HFAPI:
     # Integrations
     # *****************************************************************************************************************
 
-    def get_integrations(self, namespace: str):
+    def get_integrations(self, namespace: str, timeout: float = None):
         '''Returns all the integrations configured for a namespace'''
         payload = {
             "namespace": namespace
@@ -1622,11 +1714,13 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/integrations/{namespace}'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "integrations")
 
-    def get_integration_workspaces(self, namespace: str, integration_id: str):
+    def get_integration_workspaces(self, namespace: str, integration_id: str, timeout: float = None):
         '''Get the integration workspaces for an integration
         i.e call the integration in HF to detect in the integrated NLU
         what target/source workspaces there are.
@@ -1640,8 +1734,10 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/integration_workspaces/{namespace}/{integration_id}/workspaces'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "workspaces")
 
     def trigger_import_from_df_cx_integration(
@@ -1667,7 +1763,8 @@ class HFAPI:
             merge_entities: bool = False,
             merge_tags: bool = False,
             extra_intent_tags: list = None,
-            extra_phrase_tags: list = None
+            extra_phrase_tags: list = None,
+            timeout: float = None
         ):
         '''Triggers import of the wrokspace from the selected integration'''
         if extra_intent_tags is None:
@@ -1710,8 +1807,10 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/integration_workspaces/{namespace}/{integration_id}/workspaces/{integration_workspace_id}/import' # pylint: disable=line-too-long
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload),timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload),timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
@@ -1719,7 +1818,7 @@ class HFAPI:
     # Evaluations
     # *****************************************************************************************************************
 
-    def get_evaluation_presets(self, namespace: str, playbook: str):
+    def get_evaluation_presets(self, namespace: str, playbook: str, timeout: float = None):
         '''Get the presets to find the evaluation_preset_id to run an evaluation'''
         payload = {
             "namespace": namespace,
@@ -1730,8 +1829,10 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/presets'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "presets")
 
     def trigger_preset_evaluation(
@@ -1739,7 +1840,8 @@ class HFAPI:
                 namespace: str,
                 playbook: str,
                 evaluation_preset_id: str,
-                name: str = ''):
+                name: str = '',
+                timeout: float = None):
         '''Start an evaluation based on a preset'''
         if name == '':
             name = f'API triggered: {datetime.datetime.now()}'
@@ -1756,11 +1858,13 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/evaluations'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+    def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation report as zip'''
         payload = {
             "namespace": namespace,
@@ -1773,12 +1877,15 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/report.zip'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response, url=url, wantzip=True)
 
-    def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+    def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation summary as json'''
         payload = {
             "namespace": namespace,
@@ -1791,12 +1898,15 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
-    def list_evaluations(self, namespace: str, playbook: str) -> dict:
+    def list_evaluations(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''List all evaluations in the given playbook'''
         payload = {
             "namespace": namespace,
@@ -1808,12 +1918,15 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
-    def get_intent_results(self, namespace: str, playbook: str, evaluation_id: str, intent_id: str) -> dict:
+    def get_intent_results(self, namespace: str, playbook: str, evaluation_id: str, intent_id: str, timeout: float = None) -> dict:
         '''Get a list of training phrases that were evaluated'''
         payload = {
             "namespace": namespace,
@@ -1827,8 +1940,11 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/{intent_id}'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
@@ -1837,7 +1953,7 @@ class HFAPI:
     # Subscriptions
     # *****************************************************************************************************************
 
-    def get_plan(self):
+    def get_plan(self, timeout: float = None):
         '''Get the plan for a subscription'''
         payload = {}
 
@@ -1845,11 +1961,13 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/subscriptions/plan'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def get_usage(self):
+    def get_usage(self, timeout: float = None):
         '''Get the usage for a subscription'''
         payload = {}
 
@@ -1857,15 +1975,17 @@ class HFAPI:
 
         url = f'{self.base_url}/{self.api_version}/subscriptions/usage'
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     # *****************************************************************************************************************
     # Pipeline
     # *****************************************************************************************************************
 
-    def describe_trigger(self, namespace: str, trigger_id: str):
+    def describe_trigger(self, namespace: str, trigger_id: str, timeout: float = None):
         """Describe Trigger"""
         payload = {
             "namespace": namespace,
@@ -1874,14 +1994,18 @@ class HFAPI:
 
         headers = self._get_headers()
         url = f'{self.base_url}/{self.api_version}/triggers/{namespace}/{trigger_id}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def trigger_playbook_pipeline(self,
                                   namespace: str,
                                   playbook_id: str,
-                                  pipeline_id: str) -> dict:
+                                  pipeline_id: str,
+                                  timeout: float = None) -> dict:
         '''Triggers a pipeline'''
         payload = {
             "namespace": namespace,
@@ -1893,13 +2017,17 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/playbooks'
         args_url = f"/{namespace}/{playbook_id}/pipelines/{pipeline_id}:trigger"
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def list_playbook_pipelines(self,
                                 namespace: str,
-                                playbook_id: str) -> dict:
+                                playbook_id: str,
+                                timeout: float = None) -> dict:
         '''List pipelines for a playbook'''
         payload = {
             "namespace": namespace,
@@ -1910,6 +2038,9 @@ class HFAPI:
         base_url = f'{self.base_url}/{self.api_version}/playbooks'
         args_url = f"/{namespace}/{playbook_id}/pipelines"
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")

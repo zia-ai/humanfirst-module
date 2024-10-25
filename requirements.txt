@@ -16,3 +16,4 @@ python-dotenv
 humanfirst
 pytest-cov
 ntplib
+PyJWT
