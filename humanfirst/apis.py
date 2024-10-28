@@ -15,12 +15,15 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
-import time
+import time # pylint: disable=unused-import
 
 # third party imports
 import requests
 import requests_toolbelt
 from dotenv import load_dotenv, find_dotenv
+
+# custom imports
+from .authorization import Authorization
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -43,11 +46,6 @@ BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
-TEST_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","TEST_SIGN_IN_API_KEY")
-PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KEY")
-STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
-QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
-PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -83,7 +81,7 @@ if log_file_enable == "TRUE":
         raise RuntimeError("Require Log directory environment variable set up - HF_LOG_DIR")
 else:
     # avoid logging to a file
-    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL)
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL) pylint:disable=invalid-name
 log_defaults['HF_LOG_FILE_PATH'] = path_to_save_log
 
 
@@ -151,20 +149,6 @@ class HFAPIParameterException(Exception):
         self.message = message
         super().__init__(self.message)
 
-class HFAPIAuthException(Exception):
-    """When authorization validation fails"""
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-class HFCredentialNotAvailableException(Exception):
-    """When username/password not provided by the user"""
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
 class HFEnvironmentException(Exception):
     """When user provides an incorrect environment"""
 
@@ -203,20 +187,6 @@ class HFAPI:
         # load the environment variables from the .env file if present
         load_dotenv(dotenv_path=dotenv_path)
 
-        if username == "":
-            # this automatically checks if the environment variable is available in CLI first
-            # and then checks the .env varaiables
-            username = os.environ.get("HF_USERNAME")
-            if username is None:
-                raise HFCredentialNotAvailableException("HF_USERNAME is not set as environment variable")
-
-        if password == "":
-            # this automatically checks if the environment variable is available in CLI first
-            # and then checks the .env varaiables
-            password = os.environ.get("HF_PASSWORD")
-            if password is None:
-                raise HFCredentialNotAvailableException("HF_PASSWORD is not set as environment variable")
-
         if environment == "":
             # this automatically checks if the environment variable is available in CLI first
             # and then checks the .env varaiables
@@ -240,22 +210,17 @@ class HFAPI:
         # and the URL of the humanfirst environment
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
-            self.identity_api_key = PROD_SIGN_IN_API_KEY
         # This option assumes you are running a container locally
         # In this case the IP address must be set as a Env variable
         # BASE_URL_TEST
         elif self.studio_environment == "test":
             self.base_url = os.environ.get("BASE_URL_TEST")
-            self.identity_api_key = TEST_SIGN_IN_API_KEY
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
-            self.identity_api_key = STAGING_SIGN_IN_API_KEY
         elif self.studio_environment == "qa":
             self.base_url = BASE_URL_QA
-            self.identity_api_key = QA_SIGN_IN_API_KEY
         elif self.studio_environment == "pre_prod":
             self.base_url = BASE_URL_PRE_PROD
-            self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
                 "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
@@ -264,21 +229,10 @@ class HFAPI:
         if self.base_url[-1] == "/":
             self.base_url = self.base_url[:-1]
 
-        self.bearer_token = {
-            "bearer_token": "",
-            "refresh_token": "",
-            "expires_in": 3600,
-            "datetime": datetime.datetime.now(),
-            "status": EXPIRED
-        }
-        auth_response = self._authorize(username=username, password=password)
-        self.bearer_token = {
-            "bearer_token": auth_response["idToken"],
-            "refresh_token": auth_response["refreshToken"],
-            "expires_in": int(auth_response["expiresIn"]),
-            "datetime": datetime.datetime.now(),
-            "status": VALID
-        }
+        self.auth = Authorization(username=username,
+                                  password=password,
+                                  environment=self.studio_environment,
+                                  timeout=self.timeout)
 
     def _validate_response(self,
                            response: requests.Response,
@@ -316,7 +270,11 @@ class HFAPI:
             try:
                 candidate = response.json()
             except requests.JSONDecodeError as e:
-                raise RuntimeError(f'Response Status code: {response.status_code}\nResponse_text: {response.text}\nError: {e}')
+                logging.error('Response Status code: %s \nResponse_text: %s \nError: %s',
+                              response.status_code,
+                              response.text,
+                              e)
+                raise
             if candidate:
                 if field and field in candidate.keys():
                     return candidate[field]
@@ -447,7 +405,7 @@ class HFAPI:
                     hierarchical_delimiter="-",
                     hierarchical_intent_name_disabled: bool = True,
                     zip_encoding: bool = False,
-                    include_negative_phrases: bool = False, 
+                    include_negative_phrases: bool = False,
                     timeout: float = None
                     ) -> dict:
         '''Returns the actual training information including where present in the workspace
@@ -480,7 +438,11 @@ class HFAPI:
         response_dict = json.loads(response)
         return response_dict
 
-    def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False, timeout: float = None) -> dict:
+    def delete_playbook(self,
+                        namespace: str,
+                        playbook_id: str,
+                        hard_delete: bool = False,
+                        timeout: float = None) -> dict:
         '''
         Delete the playbook provided
 
@@ -552,7 +514,12 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "revisions")
 
-    def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str, timeout: float = None) -> dict:
+    def update_intent(self,
+                      namespace: str,
+                      playbook: str,
+                      intent: dict,
+                      update_mask: str,
+                      timeout: float = None) -> dict:
         '''Update an intent
 
         *update_mask = <keywords used in an intent hf format>
@@ -855,7 +822,7 @@ class HFAPI:
 
         if model_id or revision_id:
             if not model_id or not revision_id:
-                raise HFAPIAuthException(
+                raise HFAPIParameterException(
                     "If either specified both model_id and revision_id are required")
 
         if model_id:
@@ -962,7 +929,7 @@ class HFAPI:
         if model_id:
             payload["model_id"] = model_id
 
-        logger.info(f'PAYLOAD - {payload}')
+        logger.info('PAYLOAD - %s ', payload)
 
         headers = self._get_headers()
 
@@ -985,111 +952,19 @@ class HFAPI:
     def  _get_headers(self) -> dict:
         """Produce the necessary header"""
 
-        now = datetime.datetime.now()
-        time_diff = now - self.bearer_token["datetime"]
-
-        assert isinstance(time_diff, datetime.timedelta)
-
-        logger.info("Current time: %s",now)
-        logger.info('Token Creation time: %s',self.bearer_token["datetime"])
-        logger.info(self.bearer_token)        
-        logger.info("Time Difference: %s",time_diff)
-        logger.info('Token status: %s',self.bearer_token["status"])
-        if time_diff.seconds < CLOCK_SYNC_DRIFT_AMBIGUITY:
-            time.sleep(CLOCK_SYNC_DRIFT_AMBIGUITY)
-            logger.info('Waiting: %f', CLOCK_SYNC_DRIFT_AMBIGUITY)
-        time_diff = time_diff.seconds + EXPIRY_ADDITION
-
-        # adding 60 sec to the time difference to check if ample amount of time is left for using the token
-        if time_diff >= self.bearer_token["expires_in"] and self.bearer_token["status"] == VALID:
-            logger.info("Refreshing Token")
-            self.bearer_token["status"] = REFRESHING
-            refresh_response = self._refresh_bearer_token()
-            self.bearer_token = {
-                "bearer_token": refresh_response["id_token"],
-                "refresh_token": refresh_response["refresh_token"],
-                "expires_in": int(refresh_response["expires_in"]),
-                # TODO: this is the time now - not the time of creation - that needs to decode the JWT to get
-                "datetime": datetime.datetime.now(),
-                "status": VALID
-            }
+        # validate the token
+        self.auth.validate_jwt()
 
         headers = {}
-        if self.bearer_token["status"] == REFRESHING or self.bearer_token["status"] == EXPIRED:
-            headers = {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': 'application/json'
-            }
-        if self.bearer_token["status"] == VALID:
-            bearer_string = f'Bearer {self.bearer_token["bearer_token"]}'
-            headers = {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': 'application/json',
-                'Authorization': bearer_string
-            }
+        bearer_string = f'Bearer {self.auth.bearer_token_dict["token"]}'
+        headers = {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json',
+            'Authorization': bearer_string
+        }
 
         return headers
 
-
-    def _authorize(self, username: str, password: str, timeout: float = None) -> dict:
-        '''Get bearer token for a username and password'''
-
-        base_url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='
-        auth_url = f'{base_url}{self.identity_api_key}'
-
-        headers = self._get_headers()
-
-        auth_body = {
-            "email": username,
-            "password": password,
-            "returnSecureToken": True
-        }
-
-        effective_timeout = timeout if timeout is not None else self.timeout
-
-        auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
-        if auth_response.status_code != 200:
-            raise HFAPIAuthException(
-                f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
-        # sleep for 10th second to account for slight clock drifts with the GCP server
-        print("DARNIT")
-        time.sleep(0.01)
-        return auth_response.json()
-
-    def _refresh_bearer_token(self, timeout: float = None):
-        """refreshes bearer token"""
-
-        base_url = 'https://securetoken.googleapis.com/v1/token?key='
-        auth_url = f'{base_url}{self.identity_api_key}'
-
-        headers = self._get_headers()
-
-        auth_body = {
-            "refresh_token": self.bearer_token["refresh_token"],
-            "grant_type": "refresh_token"
-        }
-
-        effective_timeout = timeout if timeout is not None else self.timeout
-
-        auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
-        if auth_response.status_code != 200:
-            raise HFAPIAuthException(
-                f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
-        return auth_response.json()
-
-    # def process_auth(self, bearertoken: str = '', username: str = '', password: str = '') -> dict:
-    #     '''Validate which authorisation method using and return the headers'''
-
-    #     if bearertoken == '':
-    #         for arg in ['username', 'password']:
-    #             if arg == '':
-    #                 raise HFAPIAuthException(
-    #                     'If bearer token not provided, must provide username and password')
-    #         return self._authorize(username, password)
-    #     else:
-    #         return self._get_headers()
 
     # *****************************************************************************************************************
     # Conversation sets
@@ -1266,7 +1141,11 @@ class HFAPI:
         return self._validate_response(response, url)
 
     # TODO: Implement API to get the list of playbook ids a convoset is linked to
-    def unlink_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str, timeout: float = None) -> dict:
+    def unlink_conversation_set(self,
+                                namespace: str,
+                                playbook_id: str,
+                                convoset_id: str,
+                                timeout: float = None) -> dict:
         """Unlink conversation sets"""
 
         # TODO: Unlink convoset from all the linked workspaces
@@ -1522,7 +1401,7 @@ class HFAPI:
             pipeline_id: str = "",
             pipeline_step_id: str = "",
             exists_filter_key_name: str = "",
-            metadata_predicate: list[dict] = [],
+            metadata_predicate: list[dict] = None,
             download_format: int = 1, # 1 = JSON 2 = CSV
             prompt_id: str = "",
             generation_run_id: str = "",
@@ -1552,6 +1431,10 @@ class HFAPI:
             #other filters..
         ]
         '''
+
+
+        if metadata_predicate is None:
+            metadata_predicate = []
 
         # operator 0 EQUALS filter types
         metadata_keys = [
@@ -1598,15 +1481,16 @@ class HFAPI:
 
         #Map the metadata filters passed in via object
         if len(metadata_predicate) > 0:
-            for index, metadata_field in enumerate(metadata_predicate):
+            for _, metadata_field in enumerate(metadata_predicate):
 
                 try:
                     #Find matching numerical operator
                     numerical_operator = condition_dict[metadata_field["operator"]]
-                except Exception as e:
-                    raise ValueError(f"Invalid operator '{metadata_field['operator']}'. Please choose from: "
+                except Exception as _:
+                    logging.error("Invalid operator %s. Please choose from: "
                             "EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS, "
-                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY")
+                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY", metadata_field['operator'])
+                    raise
 
                 #Support for OR query
                 if metadata_field.get("optional"):
@@ -1926,7 +1810,12 @@ class HFAPI:
 
         return self._validate_response(response=response,url=url)
 
-    def get_intent_results(self, namespace: str, playbook: str, evaluation_id: str, intent_id: str, timeout: float = None) -> dict:
+    def get_intent_results(self,
+                           namespace: str,
+                           playbook: str,
+                           evaluation_id: str,
+                           intent_id: str,
+                           timeout: float = None) -> dict:
         '''Get a list of training phrases that were evaluated'''
         payload = {
             "namespace": namespace,
