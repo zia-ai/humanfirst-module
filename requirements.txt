@@ -13,7 +13,6 @@ dataclasses
 dataclasses-json
 pytest
 python-dotenv
-humanfirst
 pytest-cov
 ntplib
 PyJWT

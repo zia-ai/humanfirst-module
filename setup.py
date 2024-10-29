@@ -14,7 +14,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "humanfirst", "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
-VERSION = '1.1.5'
+VERSION = '2.0.0'
 DESCRIPTION = 'HumanFirst Package Module'
 
 CLASSIFIERS = [
@@ -36,6 +36,7 @@ setup(
     package_data={
         'humanfirst': ['config/*.conf', 'config/*.cfg'],
     },
+    # Libraries used in code
     install_requires=[
         'numpy',
         'pandas',
@@ -43,7 +44,8 @@ setup(
         'requests-toolbelt',
         'dataclasses',
         'dataclasses-json',
-        'python-dotenv'
+        'python-dotenv',
+        "PyJWT"
     ],
     keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
@@ -66,7 +68,10 @@ setup(
             "dataclasses",
             "dataclasses-json",
             "pytest",
-            "python-dotenv"
+            "python-dotenv",
+            "pytest-cov",
+            "ntplib",
+            "PyJWT"
         ]
     }
 )
