@@ -15,4 +15,4 @@ pytest
 python-dotenv
 pytest-cov
 ntplib
-PyJWT
+PyJWT[crypto]

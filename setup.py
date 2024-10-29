@@ -45,7 +45,7 @@ setup(
         'dataclasses',
         'dataclasses-json',
         'python-dotenv',
-        "PyJWT"
+        "PyJWT[crypto]"
     ],
     keywords=['python', 'humanfirst', 'HumanFirst'],
     classifiers=CLASSIFIERS,
@@ -71,7 +71,7 @@ setup(
             "python-dotenv",
             "pytest-cov",
             "ntplib",
-            "PyJWT"
+            "PyJWT[crypto]"
         ]
     }
 )
