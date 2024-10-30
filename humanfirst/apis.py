@@ -46,6 +46,7 @@ BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+BASE_URL_AIO = constants.get("humanfirst.CONSTANTS","BASE_URL_AIO")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -221,9 +222,11 @@ class HFAPI:
             self.base_url = BASE_URL_QA
         elif self.studio_environment == "pre_prod":
             self.base_url = BASE_URL_PRE_PROD
+        elif self.studio_environment == "aio":
+            self.base_url = BASE_URL_AIO
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod, aio")
 
         # Check if URL ends with /
         if self.base_url[-1] == "/":
