@@ -15,11 +15,15 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
+import time # pylint: disable=unused-import
 
 # third party imports
 import requests
 import requests_toolbelt
 from dotenv import load_dotenv, find_dotenv
+
+# custom imports
+from .authorization import Authorization
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -29,18 +33,91 @@ constants = ConfigParser()
 path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
 
+CLOCK_SYNC_DRIFT_AMBIGUITY = 0
+
 # constants need type conversion from str to int
-TIMEOUT = int(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
+TIMEOUT = float(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
 EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
+# BASE_URL_TEST must be set by environment variable expected of the form BASE_URL_TEST=http://172.17.0.3:8888
+BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
+BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
+BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
+BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
 
+# Get the current date and time
+current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Create the log file name with the current datetime
+log_filename = f"log_{current_datetime}.log"
+
+# Decide whether to save logs in a file or not
+log_file_enable = os.environ.get("HF_LOG_FILE_ENABLE")
+
+log_handler_list = []
+
+if log_file_enable == "TRUE":
+    log_handler_list.append('rotatingFileHandler')
+elif log_file_enable == "FALSE" or log_file_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect HF_LOG_FILE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+log_defaults = {}
+
+# get log directory if going to save the logs
+if log_file_enable == "TRUE":
+    log_dir = os.environ.get("HF_LOG_DIR")
+    if log_dir:
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        path_to_save_log = os.path.join(log_dir,log_filename)
+    else:
+        raise RuntimeError("Require Log directory environment variable set up - HF_LOG_DIR")
+else:
+    # avoid logging to a file
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL) pylint:disable=invalid-name
+log_defaults['HF_LOG_FILE_PATH'] = path_to_save_log
+
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("HF_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_handler_list.append('consoleHandler')
+elif log_console_enable == "FALSE" or log_console_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect HF_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+if log_handler_list:
+    log_defaults['HF_LOG_HANDLER'] = ",".join(log_handler_list)
+else:
+    log_defaults['HF_LOG_HANDLER'] = "nullHandler"
+
+
+# Set log levels
+log_level = os.environ.get("HF_LOG_LEVEL")
+if log_level is not None:
+    # set log level
+    if log_level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        raise RuntimeError("Incorrect log level. Should be - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'")
+
+    log_defaults['HF_LOG_LEVEL'] = log_level
+else:
+    log_defaults['HF_LOG_LEVEL'] = 'INFO' # default level
+
+
 # Load logging configuration
-logging.config.fileConfig(path_to_log_config_file)
+logging.config.fileConfig(
+    path_to_log_config_file,
+    defaults=log_defaults
+)
 
 # create logger
 logger = logging.getLogger('humanfirst.apis')
@@ -72,15 +149,8 @@ class HFAPIParameterException(Exception):
         self.message = message
         super().__init__(self.message)
 
-class HFAPIAuthException(Exception):
-    """When authorization validation fails"""
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-class HFCredentialNotAvailableException(Exception):
-    """When username/password not provided by the user"""
+class HFEnvironmentException(Exception):
+    """When user provides an incorrect environment"""
 
     def __init__(self, message: str):
         self.message = message
@@ -96,7 +166,11 @@ class HFAPI:
 
     bearer_token: dict
 
-    def __init__(self, username: str = "", password: str = ""):
+    def __init__(self, username: str = "",
+                 password: str = "",
+                 environment: str = "",
+                 api_version: str = "",
+                 timeout: float = TIMEOUT):
         """
         Initializes bearertoken
 
@@ -113,35 +187,52 @@ class HFAPI:
         # load the environment variables from the .env file if present
         load_dotenv(dotenv_path=dotenv_path)
 
-        if username == "":
+        if environment == "":
             # this automatically checks if the environment variable is available in CLI first
             # and then checks the .env varaiables
-            username = os.environ.get("HF_USERNAME")
-            if username is None:
-                raise HFCredentialNotAvailableException("HF_USERNAME is not set as environment variable")
+            environment = os.environ.get("HF_ENVIRONMENT")
+            if environment is None:
+                environment = "prod"
+            self.studio_environment = environment
 
-        if password == "":
+        if api_version == "":
             # this automatically checks if the environment variable is available in CLI first
             # and then checks the .env varaiables
-            password = os.environ.get("HF_PASSWORD")
-            if password is None:
-                raise HFCredentialNotAvailableException("HF_PASSWORD is not set as environment variable")
+            api_version = os.environ.get("HF_API_VERSION")
+            if api_version is None:
+                api_version = "v1alpha1"
+            self.api_version = api_version
 
-        self.bearer_token = {
-            "bearer_token": "",
-            "refresh_token": "",
-            "expires_in": 3600,
-            "datetime": datetime.datetime.now(),
-            "status": EXPIRED
-        }
-        auth_response = self._authorize(username=username, password=password)
-        self.bearer_token = {
-            "bearer_token": auth_response["idToken"],
-            "refresh_token": auth_response["refreshToken"],
-            "expires_in": int(auth_response["expiresIn"]),
-            "datetime": datetime.datetime.now(),
-            "status": VALID
-        }
+        self.timeout = timeout
+
+        # by default the url points to prod
+        # This case section sets the Key used to authenticate with the GCP key issuing server
+        # and the URL of the humanfirst environment
+        if self.studio_environment == "prod":
+            self.base_url = BASE_URL_PROD
+        # This option assumes you are running a container locally
+        # In this case the IP address must be set as a Env variable
+        # BASE_URL_TEST
+        elif self.studio_environment == "test":
+            self.base_url = os.environ.get("BASE_URL_TEST")
+        elif self.studio_environment == "staging":
+            self.base_url = BASE_URL_STAGING
+        elif self.studio_environment == "qa":
+            self.base_url = BASE_URL_QA
+        elif self.studio_environment == "pre_prod":
+            self.base_url = BASE_URL_PRE_PROD
+        else:
+            raise HFEnvironmentException(
+                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+
+        # Check if URL ends with /
+        if self.base_url[-1] == "/":
+            self.base_url = self.base_url[:-1]
+
+        self.auth = Authorization(username=username,
+                                  password=password,
+                                  environment=self.studio_environment,
+                                  timeout=self.timeout)
 
     def _validate_response(self,
                            response: requests.Response,
@@ -176,7 +267,14 @@ class HFAPI:
                 url=url, payload=payload, response=response)
 
             # Check for the passed field or return the full object
-            candidate = response.json()
+            try:
+                candidate = response.json()
+            except requests.JSONDecodeError as e:
+                logging.error('Response Status code: %s \nResponse_text: %s \nError: %s',
+                              response.status_code,
+                              response.text,
+                              e)
+                raise
             if candidate:
                 if field and field in candidate.keys():
                     return candidate[field]
@@ -189,7 +287,7 @@ class HFAPI:
     # Tags
     # *****************************************************************************************************************
 
-    def get_tags(self, namespace: str, playbook: str) -> dict:
+    def get_tags(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns tags'''
         payload = {
             "namespace": namespace,
@@ -198,12 +296,13 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "tags")
 
-    def delete_tag(self, namespace: str, playbook: str, tag_id: str) -> dict:
+    def delete_tag(self, namespace: str, playbook: str, tag_id: str, timeout: float = None) -> dict:
         '''Returns tags'''
         payload = {
             "namespace": namespace,
@@ -213,13 +312,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags/{tag_id}'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags/{tag_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def create_tag(self, namespace: str, playbook: str,
-                tag_id: str, tag_name: str, tag_color: str) -> dict:
+                tag_id: str, tag_name: str, tag_color: str,
+                timeout: float = None) -> dict:
         '''Create a tag'''
 
         now = datetime.datetime.now()
@@ -239,16 +340,17 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/tags'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     # *****************************************************************************************************************
     # Playbooks/Workspaces
     # *****************************************************************************************************************
 
-    def create_playbook(self, namespace: str, playbook_name: str) -> dict:
+    def create_playbook(self, namespace: str, playbook_name: str, timeout: float = None) -> dict:
         '''
         Creates a playbook in the given namespace
 
@@ -261,12 +363,13 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks(self, namespace: str) -> dict:
+    def list_playbooks(self, namespace: str, timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering'''
         payload = {
@@ -275,26 +378,13 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def post_playbook(self, namespace: str, name: str) -> dict:
-        '''Create a playbook'''
-        payload = {
-            "namespace": namespace, # namespace of the playbook in the pipeline metastore
-            "playbook_name": name # not currently honored - fix under way
-        }
-
-        headers = self._get_headers()
-
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}'
-        response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-        return self._validate_response(response, url)
-
-    def get_playbook_info(self, namespace: str, playbook: str) -> dict:
+    def get_playbook_info(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns metadata of playbook'''
         payload = {
             "namespace": namespace,
@@ -303,9 +393,10 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}'
+        url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def get_playbook(self,
@@ -314,7 +405,8 @@ class HFAPI:
                     hierarchical_delimiter="-",
                     hierarchical_intent_name_disabled: bool = True,
                     zip_encoding: bool = False,
-                    include_negative_phrases: bool = False
+                    include_negative_phrases: bool = False,
+                    timeout: float = None
                     ) -> dict:
         '''Returns the actual training information including where present in the workspace
         * intents
@@ -336,16 +428,21 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/export'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/export'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         response = self._validate_response(response, url, "data")
         response = base64.b64decode(response)
         response = response.decode('utf-8')
         response_dict = json.loads(response)
         return response_dict
 
-    def delete_playbook(self, namespace: str, playbook_id: str, hard_delete: bool = False) -> dict:
+    def delete_playbook(self,
+                        namespace: str,
+                        playbook_id: str,
+                        hard_delete: bool = False,
+                        timeout: float = None) -> dict:
         '''
         Delete the playbook provided
 
@@ -360,16 +457,17 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook_id}'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
     # *****************************************************************************************************************
     # Intents
     # *****************************************************************************************************************
 
-    def get_intents(self, namespace: str, playbook: str) -> dict:
+    def get_intents(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get all the intents in a workspace'''
         payload = {
             "namespace": namespace,
@@ -378,13 +476,14 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "intents")
 
 
-    def get_intent(self, namespace: str, playbook: str, intent_id: str) -> dict:
+    def get_intent(self, namespace: str, playbook: str, intent_id: str, timeout: float = None) -> dict:
         '''Get the metdata for the intent needed'''
         payload = {
             "namespace": namespace,
@@ -393,13 +492,14 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/{intent_id}'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/{intent_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
-    def get_revisions(self, namespace: str, playbook: str,) -> dict:
+    def get_revisions(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get revisions for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -408,12 +508,18 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/revisions'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/revisions'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "revisions")
 
-    def update_intent(self, namespace: str, playbook: str, intent: dict, update_mask: str) -> dict:
+    def update_intent(self,
+                      namespace: str,
+                      playbook: str,
+                      intent: dict,
+                      update_mask: str,
+                      timeout: float = None) -> dict:
         '''Update an intent
 
         *update_mask = <keywords used in an intent hf format>
@@ -428,9 +534,10 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "PUT", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def import_intents(
@@ -453,7 +560,8 @@ class HFAPI:
             # extra_intent_tags: list = None,
             # extra_phrase_tags: list = None,
             override_metadata: bool = True,
-            override_name: bool = True
+            override_name: bool = True,
+            timeout: float = None
         ) -> dict:
         """Import intents using multipart assuming an input humanfirst JSON file
 
@@ -503,9 +611,10 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/import'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/import'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def import_intents_http(
@@ -514,7 +623,8 @@ class HFAPI:
             workspace_file_path: str, # or union HFWorkspace
             # format_int: int = 7,
             hierarchical_intent_name_disabled: bool = True,
-            hierarchical_delimiter: str = "/"
+            hierarchical_delimiter: str = "/",
+            timeout: float = None
             # zip_encoding: bool = False,
             # gzip_encoding: bool = False,
             # clear_intents: bool = False,
@@ -574,9 +684,10 @@ class HFAPI:
 
         headers["Content-Type"] = payload.content_type
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/intents/import_http'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/intents/import_http'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
@@ -584,16 +695,17 @@ class HFAPI:
     # Call NLU engines
     # *****************************************************************************************************************
 
-    def get_models(self, namespace: str) -> dict:
+    def get_models(self, namespace: str, timeout: float = None) -> dict:
         '''Get available models for a namespace
         NOTE: THIS IS NOT nlu-id!'''
         payload = {}
 
         headers = self._get_headers()
 
-        url = 'https://api.humanfirst.ai/v1alpha1/models'
+        url = f'{self.base_url}/{self.api_version}/models'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         models = self._validate_response(response, url, "models")
         namespace_models = []
         for model in models:
@@ -602,7 +714,7 @@ class HFAPI:
         return namespace_models
 
 
-    def get_nlu_engines(self, namespace: str, playbook: str) -> dict:
+    def get_nlu_engines(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get nlu engines for the for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -611,13 +723,14 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/nlu_engines'
+        url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/nlu_engines'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "nluEngines")
 
 
-    def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str) -> dict:
+    def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str, timeout: float = None) -> dict:
         '''Get nlu engine for the for the namespace and playbook'''
         payload = {
             "namespace": namespace,
@@ -627,12 +740,13 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/nlu_engines/{nlu_id}'
+        url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/nlu_engines/{nlu_id}'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def list_trained_nlu(self, namespace: str, playbook: str) -> dict:
+    def list_trained_nlu(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
         payload = {
             "namespace": namespace,
@@ -641,16 +755,17 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/nlu'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/nlu'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="runs")
 
 
     def trigger_train_nlu(self, namespace: str, playbook: str, nlu_id: str,
                         force_train: bool = True, skip_train: bool= False,
                         force_infer: bool = False, skip_infer: bool = True,
-                        auto: bool = False) -> dict:
+                        auto: bool = False, timeout: float = None) -> dict:
         '''Trigger training for a workspace here we only allow for one request for
         one engine - but theoretically you can call to trigger many on the same
         playbook
@@ -680,15 +795,16 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/nlu:train'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/nlu:train'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response, url)
 
 
     def predict(self, sentence: str, namespace: str, playbook: str,
-                model_id: str = None, revision_id: str = None) -> dict:
+                model_id: str = None, revision_id: str = None, timeout: float = None) -> dict:
         '''Get response_dict of matches and hier matches for an input
         optionally specify which model and revision ID you want the prediction from
         model_id probably better know as nlu-id
@@ -706,7 +822,7 @@ class HFAPI:
 
         if model_id or revision_id:
             if not model_id or not revision_id:
-                raise HFAPIAuthException(
+                raise HFAPIParameterException(
                     "If either specified both model_id and revision_id are required")
 
         if model_id:
@@ -714,17 +830,18 @@ class HFAPI:
         if revision_id:
             payload["revision_id"] = model_id
 
-        url = f'https://api.humanfirst.ai/v1alpha1/nlu/predict/{namespace}/{playbook}'
+        url = f'{self.base_url}/{self.api_version}/nlu/predict/{namespace}/{playbook}'
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
-    def batchPredict(self, sentences: list, 
-                     namespace: str, 
+    def batchPredict(self, sentences: list, # pylint: disable=invalid-name
+                     namespace: str,
                      playbook: str,
-                     timeout: int = TIMEOUT) -> dict:  # pylint: disable=invalid-name
+                     timeout: float = None) -> dict:
         '''Get response_dict of matches and hier matches for a batch of sentences
         TODO: model version changes'''
         payload = {
@@ -735,10 +852,10 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/nlu/predict/{namespace}/{playbook}/batch'
-
+        url = f'{self.base_url}/{self.api_version}/nlu/predict/{namespace}/{playbook}/batch'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=timeout)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "predictions")
 
     # *****************************************************************************************************************
@@ -749,7 +866,8 @@ class HFAPI:
                                      namespace: str,
                                      playbook: str,
                                      data_selection: int = 1,
-                                     model_id: str = None):
+                                     model_id: str = None,
+                                     timeout: float = None):
         '''Download a set of coverage histogram data at 0.5 confidence clip intervals
         TODO: this is unvalidated in academy
 
@@ -771,10 +889,10 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest'
-
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/coverage/latest'
+        effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "report")
 
     def export_intents_coverage(self,
@@ -783,7 +901,8 @@ class HFAPI:
                                 model_id: str = None,
                                 confidence_threshold: int = 70, # This is the default in the GUI
                                 coverage_type: int = 1, # COVERAGE_TYPE_TOTAL
-                                data_selection: int = 1 # DATA_TYPE_ALL
+                                data_selection: int = 1, # DATA_TYPE_ALL
+                                timeout: float = None
                                 ):
         '''Get the coverage calculation at a certain clip returned as a csv file
         This works the same as downloading the coverage report from the intents tab
@@ -810,17 +929,19 @@ class HFAPI:
         if model_id:
             payload["model_id"] = model_id
 
-        print(payload)
+        logger.info('PAYLOAD - %s ', payload)
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/coverage/latest/export'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/coverage/latest/export'
         params0 = f'?namespace={namespace}&playbook={playbook}&confidence_threshold={confidence_threshold}'
         params1 = f'&coverage_type={coverage_type}&data_selection={data_selection}'
         url = url + params0 + params1
 
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, wantcsv=True)
 
 
@@ -831,114 +952,37 @@ class HFAPI:
     def  _get_headers(self) -> dict:
         """Produce the necessary header"""
 
-        now = datetime.datetime.now()
-        time_diff = now - self.bearer_token["datetime"]
+        # validate the token
+        self.auth.validate_jwt()
 
-        assert isinstance(time_diff, datetime.timedelta)
-
-        logger.info("Current time: %s",now)
-        logger.info('Token Creation time: %s',self.bearer_token["datetime"])
-        logger.info("Time Difference: %s",time_diff)
-        logger.info('Token status: %s',self.bearer_token["status"])
-        time_diff = time_diff.seconds + EXPIRY_ADDITION
-
-        # adding 60 sec to the time difference to check if ample amount of time is left for using the token
-        if time_diff >= self.bearer_token["expires_in"] and self.bearer_token["status"] == VALID:
-            logger.info("Refreshing Token")
-            self.bearer_token["status"] = REFRESHING
-            refresh_response = self._refresh_bearer_token()
-            self.bearer_token = {
-                "bearer_token": refresh_response["id_token"],
-                "refresh_token": refresh_response["refresh_token"],
-                "expires_in": int(refresh_response["expires_in"]),
-                "datetime": datetime.datetime.now(),
-                "status": VALID
-            }
-
-        if self.bearer_token["status"] == REFRESHING or self.bearer_token["status"] == EXPIRED:
-            headers = {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': 'application/json'
-            }
-        if self.bearer_token["status"] == VALID:
-            bearer_string = f'Bearer {self.bearer_token["bearer_token"]}'
-            headers = {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': 'application/json',
-                'Authorization': bearer_string
-            }
+        headers = {}
+        bearer_string = f'Bearer {self.auth.bearer_token_dict["token"]}'
+        headers = {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json',
+            'Authorization': bearer_string
+        }
 
         return headers
 
-
-    def _authorize(self, username: str, password: str) -> dict:
-        '''Get bearer token for a username and password'''
-
-        key = 'AIzaSyA5xZ7WCkI6X1Q2yzWHUrc70OXH5iCp7-c'
-        base_url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='
-        auth_url = f'{base_url}{key}'
-
-        headers = self._get_headers()
-
-        auth_body = {
-            "email": username,
-            "password": password,
-            "returnSecureToken": True
-        }
-
-        auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
-        if auth_response.status_code != 200:
-            raise HFAPIAuthException(
-                f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
-        return auth_response.json()
-
-    def _refresh_bearer_token(self):
-        """refreshes bearer token"""
-
-        key = 'AIzaSyA5xZ7WCkI6X1Q2yzWHUrc70OXH5iCp7-c'
-        base_url = 'https://securetoken.googleapis.com/v1/token?key='
-        auth_url = f'{base_url}{key}'
-
-        headers = self._get_headers()
-
-        auth_body = {
-            "refresh_token": self.bearer_token["refresh_token"],
-            "grant_type": "refresh_token"
-        }
-        auth_response = requests.request(
-            "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=TIMEOUT)
-        if auth_response.status_code != 200:
-            raise HFAPIAuthException(
-                f'Not authorised, google returned {auth_response.status_code} {auth_response.json()}')
-        return auth_response.json()
-
-    # def process_auth(self, bearertoken: str = '', username: str = '', password: str = '') -> dict:
-    #     '''Validate which authorisation method using and return the headers'''
-
-    #     if bearertoken == '':
-    #         for arg in ['username', 'password']:
-    #             if arg == '':
-    #                 raise HFAPIAuthException(
-    #                     'If bearer token not provided, must provide username and password')
-    #         return self._authorize(username, password)
-    #     else:
-    #         return self._get_headers()
 
     # *****************************************************************************************************************
     # Conversation sets
     # *****************************************************************************************************************
 
-    def get_conversation_set_list(self, namespace: str) -> tuple:
+    def get_conversation_set_list(self, namespace: str, timeout: float = None) -> tuple:
         """Get all the conversation sets and their info for a namespaces"""
 
         payload = {}
 
         headers = self._get_headers()
 
-        url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets?namespace={namespace}"
+        url = f"{self.base_url}/{self.api_version}/conversation_sets?namespace={namespace}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
 
         # make it a list looking up each individual one
@@ -946,9 +990,9 @@ class HFAPI:
         for conversation_set in conversation_sets:
             conversation_set_id = conversation_set['id']
 
-            url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{conversation_set_id}"
+            url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
             response = requests.request(
-                "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+                "GET", url, headers=headers, data=payload, timeout=effective_timeout)
             conversation_set = self._validate_response(response=response,url=url)
 
             if "state" in conversation_set.keys():
@@ -973,7 +1017,7 @@ class HFAPI:
 
         return conversation_set_list
 
-    def get_conversation_set(self, namespace: str, conversation_set_id: str) -> dict:
+    def get_conversation_set(self, namespace: str, conversation_set_id: str, timeout: float = None) -> dict:
         """Get conversation set"""
 
         headers = self._get_headers()
@@ -982,12 +1026,15 @@ class HFAPI:
             "namespace":namespace,
             "conversation_set_id":conversation_set_id
         }
-        url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{conversation_set_id}"
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response=response,url=url)
 
-    def create_conversation_set(self, namespace: str, convoset_name: str) -> dict:
+    def create_conversation_set(self, namespace: str, convoset_name: str, timeout: float = None) -> dict:
         """Creates a conversation set. Returns conversation source ID"""
 
         payload = {
@@ -1000,9 +1047,12 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}"
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         create_conversation_response = self._validate_response(response=response, url=url)
         convo_set_id = create_conversation_response["id"]
 
@@ -1022,26 +1072,125 @@ class HFAPI:
 
         return conversation_source_id
 
-    # Not currently exposed - requested 2024-08-13
-    # def delete_conversation_set(self, namespace: str, convoset_id: str) -> dict:
-    #     """Deletes a conversation_set"""
+    def create_conversation_set_with_set_and_src_id(self,
+                                                    namespace: str,
+                                                    convoset_name: str,
+                                                    timeout: float = None) -> dict:
+        """Creates a conversation set. Returns both conversation set and source ID"""
 
-    #     payload = {
-    #         "namespace": namespace,
-    #         "conversation_set":{
-    #             "name": convoset_name,
-    #             "description": ""
-    #         }
-    #     }
+        payload = {
+            "namespace": namespace,
+            "conversation_set":{
+                "name": convoset_name,
+                "description": ""
+            }
+        }
 
-    #     headers = self._get_headers()
+        headers = self._get_headers()
 
-    #     url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convo_set_id}"
-    #     response = requests.request(
-    #         "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
-    #     return self._validate_response(response=response, url=url)
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}"
 
-    def get_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        create_conversation_response = self._validate_response(response=response, url=url)
+        convo_set_id = create_conversation_response["id"]
+
+        # check whether conversation source has been created
+        # If not, then create one
+        get_convo_set_config_response = self.get_conversation_set_configuration(namespace=namespace,
+                                                                                convoset_id=convo_set_id)
+
+        if "sources" in get_convo_set_config_response:
+            conversation_source_id = get_convo_set_config_response["sources"][0]["userUpload"]["conversationSourceId"]
+
+        else:
+            update_convo_set_config_response = self.update_conversation_set_configuration(namespace=namespace,
+                                                                                          convoset_id=convo_set_id)
+
+            conversation_source_id=update_convo_set_config_response["sources"][0]["userUpload"]["conversationSourceId"]
+
+        conversation_obj = {
+            "convoset_id": convo_set_id,
+            "convosrc_id": conversation_source_id
+        }
+
+        return conversation_obj
+
+    def link_conversation_set(self, namespace: str, playbook_id: str, convoset_id: str, timeout: float = None) -> dict:
+        """Link conversation sets"""
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "conversation_sets": [{
+                "namespace": namespace,
+                "id": convoset_id
+            }]
+        }
+
+        headers = self._get_headers()
+
+        url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:link'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response, url)
+
+    # TODO: Implement API to get the list of playbook ids a convoset is linked to
+    def unlink_conversation_set(self,
+                                namespace: str,
+                                playbook_id: str,
+                                convoset_id: str,
+                                timeout: float = None) -> dict:
+        """Unlink conversation sets"""
+
+        # TODO: Unlink convoset from all the linked workspaces
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "conversation_sets": [{
+                "namespace": namespace,
+                "id": convoset_id
+            }]
+        }
+
+        headers = self._get_headers()
+
+        url = f'{self.base_url}/{self.api_version}/conversation_sets/{namespace}:unlink'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response, url)
+
+    def delete_conversation_set(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
+        """Deletes a conversation_set"""
+
+        # TODO: A "force" boolean method parameter
+        #       when enabled, the convoset should be unlinked from all the workspaces and deleted
+
+        payload = {
+            "namespace": namespace,
+            "id": convoset_id
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response=response, url=url)
+
+    def get_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Gets conversation set configuration"""
 
         payload = {
@@ -1051,12 +1200,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convoset_id}/config"
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}/config"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response, url=url)
 
-    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str) -> dict:
+    def list_conversation_src_files(self, namespace: str, conversation_set_src_id: str, timeout: float = None) -> dict:
         """Get the list of conversation files within a convo set."""
 
         headers = self._get_headers()
@@ -1065,12 +1217,19 @@ class HFAPI:
             "namespace":namespace,
             "conversation_set_id":conversation_set_src_id
         }
-        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}"
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "GET", url, headers=headers, data=payload, timeout=effective_timeout)
         return self._validate_response(response=response,url=url,field="files")
 
-    def delete_conversation_file(self, namespace:str,conversation_set_src_id: str,file_name:str):
+    def delete_conversation_file(self,
+                                 namespace:str,
+                                 conversation_set_src_id: str,
+                                 file_name:str,
+                                 timeout: float = None):
         """Deletes a specific file within a convo set."""
 
         headers = self._get_headers()
@@ -1080,14 +1239,15 @@ class HFAPI:
             "filename": file_name,
             "conversation_set_id":conversation_set_src_id
         }
-        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_set_src_id}/{file_name}"
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response,url=url)
 
-    def update_conversation_set_configuration(self, namespace: str, convoset_id: str) -> dict:
+    def update_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Update conversation set configuration"""
 
         payload = {
@@ -1105,16 +1265,23 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f"https://api.humanfirst.ai/v1alpha1/conversation_sets/{namespace}/{convoset_id}/config"
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{convoset_id}/config"
         response = requests.request(
-            "PUT", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "PUT", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response=response, url=url)
 
     # *****************************************************************************************************************
     # Conversation Source - including add files
     # *****************************************************************************************************************
 
-    def get_conversation_source(self, namespace: str, conversation_source_id: str) -> dict:
+    # TODO: Reference conversation set id using conversation source id
+    #       Currently create_conversation_set method returns only conversation_source_id
+    #       Implemented a method which returns both convoset and convosrc ids
+    #       Meanwhile people who implemented create_conversation_set, need this todo to help them get the convoset id,
+    #       which then can be used to delete the set.
+    def get_conversation_source(self, namespace: str, conversation_source_id: str, timeout: float = None) -> dict:
         '''Download conversation set'''
         payload = {
             "namespace": namespace
@@ -1122,16 +1289,20 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        # /v1alpha1/files/{namespace}/{conversation_source_id}/export
-        url = f'https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}/export'
+        # /{self.api_version}/files/{namespace}/{conversation_source_id}/export
+        url = f'{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}/export'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
     def upload_json_file_to_conversation_source(self, namespace: str,
                                                 conversation_source_id: str,
                                                 upload_name: str,
-                                                fqfp: str) -> dict:
+                                                fqfp: str,
+                                                timeout: float = None) -> dict:
         '''Upload a JSON file to a conversation source'''
         payload = {
             "namespace": namespace
@@ -1139,7 +1310,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f"https://api.humanfirst.ai/v1alpha1/files/{namespace}/{conversation_source_id}"
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
 
         # file_in = open(fqfp,mode="r",encoding="utf8")
         # json.load(file_in)
@@ -1153,8 +1324,11 @@ class HFAPI:
         # This is the magic bit - you must set the content type to include the boundary information
         # multipart encoder makes working these out easier
         headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=TIMEOUT)
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
         upload_file.close()
         return self._validate_response(response, url, "playbooks")
 
@@ -1171,7 +1345,8 @@ class HFAPI:
             convsetsource: str = "",
             next_page_token: str = "",
             start_isodate: str = '1970-01-01T00:00:00Z',
-            end_isodate: str = '2049-12-31T23:59:59Z'
+            end_isodate: str = '2049-12-31T23:59:59Z',
+            timeout: float = None
             ) -> dict:
         '''This will seach a converation set for converations and return
         the examples threaded along with their data like entropy, margin
@@ -1211,9 +1386,12 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/conversations/{namespace}/{workspace}/query'
+        url = f'{self.base_url}/{self.api_version}/conversations/{namespace}/{workspace}/query'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def export_query_conversation_inputs(
@@ -1223,7 +1401,7 @@ class HFAPI:
             pipeline_id: str = "",
             pipeline_step_id: str = "",
             exists_filter_key_name: str = "",
-            metadata_predicate: list[dict] = [],
+            metadata_predicate: list[dict] = None,
             download_format: int = 1, # 1 = JSON 2 = CSV
             prompt_id: str = "",
             generation_run_id: str = "",
@@ -1232,7 +1410,8 @@ class HFAPI:
             dedup_by_hash: bool = False,
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
-            source_kind: int = 2 # DEFAULT TO GENERATED
+            source_kind: int = 2, # DEFAULT TO GENERATED
+            timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
         CSV text file
@@ -1252,6 +1431,10 @@ class HFAPI:
             #other filters..
         ]
         '''
+
+
+        if metadata_predicate is None:
+            metadata_predicate = []
 
         # operator 0 EQUALS filter types
         metadata_keys = [
@@ -1298,15 +1481,16 @@ class HFAPI:
 
         #Map the metadata filters passed in via object
         if len(metadata_predicate) > 0:
-            for index, metadata_field in enumerate(metadata_predicate):
+            for _, metadata_field in enumerate(metadata_predicate):
 
                 try:
                     #Find matching numerical operator
                     numerical_operator = condition_dict[metadata_field["operator"]]
-                except Exception as e:
-                    raise ValueError(f"Invalid operator '{metadata_field['operator']}'. Please choose from: "
+                except Exception as _:
+                    logging.error("Invalid operator %s. Please choose from: "
                             "EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS, "
-                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY")
+                            "KEY_EXISTS, KEY_NOT_EXISTS, KEY_MATCHES, ANY", metadata_field['operator'])
+                    raise
 
                 #Support for OR query
                 if metadata_field.get("optional"):
@@ -1371,19 +1555,25 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        base_url = 'https://api.humanfirst.ai/'
-        args_url = 'v1alpha1/conversations/query/inputs/export'
+        base_url = f'{self.base_url}/'
+        args_url = f'{self.api_version}/conversations/query/inputs/export'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         res = self._validate_response(response, url)
-        downloadable_url = f'https://api.humanfirst.ai{res["exportUrlPath"]}'
+        downloadable_url = f'{self.base_url}{res["exportUrlPath"]}'
         return self._download_file_from_url(downloadable_url, download_format)
 
-    def _download_file_from_url(self, url: str, download_format: int) -> dict:
+    def _download_file_from_url(self, url: str, download_format: int, timeout: float = None) -> dict:
         """Download file from url"""
         headers = self._get_headers()
-        downloaded_json = requests.request("GET", url, headers=headers, timeout=TIMEOUT)
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        downloaded_json = requests.request("GET", url, headers=headers, timeout=effective_timeout)
         if download_format == 1: #JSON
             return downloaded_json.json()
         elif download_format == 2: #CSV
@@ -1398,7 +1588,7 @@ class HFAPI:
     # Integrations
     # *****************************************************************************************************************
 
-    def get_integrations(self, namespace: str):
+    def get_integrations(self, namespace: str, timeout: float = None):
         '''Returns all the integrations configured for a namespace'''
         payload = {
             "namespace": namespace
@@ -1406,13 +1596,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/integrations/{namespace}'
+        url = f'{self.base_url}/{self.api_version}/integrations/{namespace}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "integrations")
 
-    def get_integration_workspaces(self, namespace: str, integration_id: str):
+    def get_integration_workspaces(self, namespace: str, integration_id: str, timeout: float = None):
         '''Get the integration workspaces for an integration
         i.e call the integration in HF to detect in the integrated NLU
         what target/source workspaces there are.
@@ -1424,10 +1616,12 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/integration_workspaces/{namespace}/{integration_id}/workspaces'
+        url = f'{self.base_url}/{self.api_version}/integration_workspaces/{namespace}/{integration_id}/workspaces'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "workspaces")
 
     def trigger_import_from_df_cx_integration(
@@ -1453,7 +1647,8 @@ class HFAPI:
             merge_entities: bool = False,
             merge_tags: bool = False,
             extra_intent_tags: list = None,
-            extra_phrase_tags: list = None
+            extra_phrase_tags: list = None,
+            timeout: float = None
         ):
         '''Triggers import of the wrokspace from the selected integration'''
         if extra_intent_tags is None:
@@ -1494,10 +1689,12 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/integration_workspaces/{namespace}/{integration_id}/workspaces/{integration_workspace_id}/import' # pylint: disable=line-too-long
+        url = f'{self.base_url}/{self.api_version}/integration_workspaces/{namespace}/{integration_id}/workspaces/{integration_workspace_id}/import' # pylint: disable=line-too-long
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload),timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload),timeout=effective_timeout)
         return self._validate_response(response, url)
 
 
@@ -1505,7 +1702,7 @@ class HFAPI:
     # Evaluations
     # *****************************************************************************************************************
 
-    def get_evaluation_presets(self, namespace: str, playbook: str):
+    def get_evaluation_presets(self, namespace: str, playbook: str, timeout: float = None):
         '''Get the presets to find the evaluation_preset_id to run an evaluation'''
         payload = {
             "namespace": namespace,
@@ -1514,10 +1711,12 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/playbooks/{namespace}/{playbook}/presets'
+        url = f'{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook}/presets'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "presets")
 
     def trigger_preset_evaluation(
@@ -1525,7 +1724,8 @@ class HFAPI:
                 namespace: str,
                 playbook: str,
                 evaluation_preset_id: str,
-                name: str = ''):
+                name: str = '',
+                timeout: float = None):
         '''Start an evaluation based on a preset'''
         if name == '':
             name = f'API triggered: {datetime.datetime.now()}'
@@ -1540,13 +1740,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'https://api.humanfirst.ai/v1alpha1/workspaces/{namespace}/{playbook}/evaluations'
+        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/evaluations'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+    def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation report as zip'''
         payload = {
             "namespace": namespace,
@@ -1556,15 +1758,18 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/report.zip'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response, url=url, wantzip=True)
 
-    def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str) -> dict:
+    def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation summary as json'''
         payload = {
             "namespace": namespace,
@@ -1574,15 +1779,18 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
-    def list_evaluations(self, namespace: str, playbook: str) -> dict:
+    def list_evaluations(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''List all evaluations in the given playbook'''
         payload = {
             "namespace": namespace,
@@ -1591,15 +1799,23 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
-    def get_intent_results(self, namespace: str, playbook: str, evaluation_id: str, intent_id: str) -> dict:
+    def get_intent_results(self,
+                           namespace: str,
+                           playbook: str,
+                           evaluation_id: str,
+                           intent_id: str,
+                           timeout: float = None) -> dict:
         '''Get a list of training phrases that were evaluated'''
         payload = {
             "namespace": namespace,
@@ -1610,11 +1826,14 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        base_url = 'https://api.humanfirst.ai/v1alpha1/workspaces'
+        base_url = f'{self.base_url}/{self.api_version}/workspaces'
         args_url = f'/{namespace}/{playbook}/evaluations/{evaluation_id}/{intent_id}'
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
 
         return self._validate_response(response=response,url=url)
 
@@ -1623,38 +1842,59 @@ class HFAPI:
     # Subscriptions
     # *****************************************************************************************************************
 
-    def get_plan(self):
+    def get_plan(self, timeout: float = None):
         '''Get the plan for a subscription'''
         payload = {}
 
         headers = self._get_headers()
 
-        url = 'https://api.humanfirst.ai/v1alpha1/subscriptions/plan'
+        url = f'{self.base_url}/{self.api_version}/subscriptions/plan'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
-    def get_usage(self):
+    def get_usage(self, timeout: float = None):
         '''Get the usage for a subscription'''
         payload = {}
 
         headers = self._get_headers()
 
-        url = 'https://api.humanfirst.ai/v1alpha1/subscriptions/usage'
+        url = f'{self.base_url}/{self.api_version}/subscriptions/usage'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
 
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     # *****************************************************************************************************************
     # Pipeline
     # *****************************************************************************************************************
 
+    def describe_trigger(self, namespace: str, trigger_id: str, timeout: float = None):
+        """Describe Trigger"""
+        payload = {
+            "namespace": namespace,
+            "trigger_id": trigger_id
+        }
+
+        headers = self._get_headers()
+        url = f'{self.base_url}/{self.api_version}/triggers/{namespace}/{trigger_id}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response, url)
+
     def trigger_playbook_pipeline(self,
                                   namespace: str,
                                   playbook_id: str,
-                                  pipeline_id: str) -> dict:
+                                  pipeline_id: str,
+                                  timeout: float = None) -> dict:
         '''Triggers a pipeline'''
         payload = {
             "namespace": namespace,
@@ -1663,16 +1903,20 @@ class HFAPI:
         }
 
         headers = self._get_headers()
-        base_url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
+        base_url = f'{self.base_url}/{self.api_version}/playbooks'
         args_url = f"/{namespace}/{playbook_id}/pipelines/{pipeline_id}:trigger"
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "POST", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url)
 
     def list_playbook_pipelines(self,
                                 namespace: str,
-                                playbook_id: str) -> dict:
+                                playbook_id: str,
+                                timeout: float = None) -> dict:
         '''List pipelines for a playbook'''
         payload = {
             "namespace": namespace,
@@ -1680,9 +1924,12 @@ class HFAPI:
         }
 
         headers = self._get_headers()
-        base_url = 'https://api.humanfirst.ai/v1alpha1/playbooks'
+        base_url = f'{self.base_url}/{self.api_version}/playbooks'
         args_url = f"/{namespace}/{playbook_id}/pipelines"
         url = f'{base_url}{args_url}'
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload), timeout=TIMEOUT)
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")
