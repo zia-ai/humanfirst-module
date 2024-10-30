@@ -54,8 +54,12 @@ if TEST_NAMESPACE is None:
 
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
-TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
+TRIGGER_STATUS_UNKNOWN = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_UNKNOWN")
+TRIGGER_STATUS_PENDING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_PENDING")
 TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
+TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
+TRIGGER_STATUS_FAILED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_FAILED")
+TRIGGER_STATUS_CANCELLED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_CANCELLED")
 TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
 TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
 
@@ -97,14 +101,14 @@ def _del_playbook(hf_api: humanfirst.apis.HFAPI,
         if playbook_id == list_pb[i]["etcdId"]:
             valid_playbook_id = True
     assert valid_playbook_id is False
-    
+
 def test_list_playbooks():
     """Tests listing the playbooks in an environment"""
     hf_api = humanfirst.apis.HFAPI()
     print(f'Test namespace is: {TEST_NAMESPACE}')
     list_pb = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
     if len(list_pb) == 0:
-        print(f'No playbooks')
+        print('No playbooks')
     # Otherwise going to get a neat list
     else:
         df_pbs = pandas.json_normalize(list_pb)
@@ -118,7 +122,7 @@ def test_playbook_creation_deletion():
     playbook_id = _create_playbook(hf_api,
                             namespace=TEST_NAMESPACE,
                             playbook_name="test playbook creation")
-    
+
     try:
         assert "playbook-" in playbook_id
 
@@ -700,8 +704,20 @@ def test_conversation_set_functionalities():
                 print(link_trigger_report["triggerState"]["status"])
                 while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
                     print("Inside link trigger report")
+
+                    if (link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
+                        or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
+                        or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
+                        pass
+                    elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
+                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
+                    elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
+                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
+                    else:
+                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting unknown trigger status - {link_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
+
                     if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
+                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
                     time.sleep(TRIGGER_WAIT_TIME)
                     link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                 trigger_id=link_res["triggerId"])
@@ -738,14 +754,28 @@ def test_conversation_set_functionalities():
                 unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                 trigger_id=unlink_res["triggerId"])
                 i=0
+                print(unlink_trigger_report["triggerState"]["status"])
                 while unlink_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
                     print("Inside unlink trigger report")
+
+                    if (unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
+                        or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
+                        or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
+                        pass
+                    elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
+                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
+                    elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
+                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
+                    else:
+                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting unknown trigger status - {unlink_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
+
                     if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
+                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
                     time.sleep(TRIGGER_WAIT_TIME)
                     unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                     trigger_id=unlink_res["triggerId"])
                     i = i + 1
+                    print(unlink_trigger_report["triggerState"]["status"])
                 print("Outside unlink trigger report")
 
                 # return empty json when there is no changes made in the tool
@@ -769,14 +799,28 @@ def test_conversation_set_functionalities():
                 delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                 trigger_id=delete_res["triggerId"])
                 i=0
+                print(delete_trigger_report["triggerState"]["status"])
                 while delete_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
                     print("Inside del trigger report")
+
+                    if (delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
+                        or delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
+                        or delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
+                        pass
+                    elif delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
+                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
+                    elif delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
+                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
+                    else:
+                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting unknown trigger status - {delete_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
+
                     if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds")
+                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
                     time.sleep(TRIGGER_WAIT_TIME)
                     delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
                                                                     trigger_id=delete_res["triggerId"])
                     i = i + 1
+                    print(delete_trigger_report["triggerState"]["status"])
                 print("Outside del trigger report")
 
                 # Test deleting a file from a convoset with exception
@@ -856,7 +900,7 @@ def test_batch_predict():
     train_nlu_trigger = hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
                                                 playbook=playbook_id,
                                                 nlu_id=nlu_id)
-    
+
     print(train_nlu_trigger)
 
     # TODO use describetrigger to know the status of NLU training instead of below
@@ -896,7 +940,7 @@ def test_batch_predict():
     ]
 
     # First call - no timeout param
-    predictions = hf_api.batchPredict(sentences=sentences, 
+    predictions = hf_api.batchPredict(sentences=sentences,
                         namespace=TEST_NAMESPACE,
                         playbook=playbook_id)
 
@@ -912,17 +956,17 @@ def test_batch_predict():
     # Second call timeout set to 1 so almost certainly fails batch predict
     timeout_exception = ""
     try:
-        predictions = hf_api.batchPredict(sentences=big_sentences, 
+        predictions = hf_api.batchPredict(sentences=big_sentences,
                             namespace=TEST_NAMESPACE,
                             playbook=playbook_id,
                             timeout=0.1)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         timeout_exception = e
     assert timeout_exception != ""
     # TODO: better exception check
 
     # third with a big timeout where it should work
-    predictions = hf_api.batchPredict(sentences=big_sentences, 
+    predictions = hf_api.batchPredict(sentences=big_sentences,
                     namespace=TEST_NAMESPACE,
                     playbook=playbook_id,
                     timeout=30)
