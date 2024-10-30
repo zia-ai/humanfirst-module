@@ -51,6 +51,7 @@ jobs:
             sudo timedatectl set-ntp true
             sudo systemctl restart systemd-timesyncd
             ./aio.sh start
+            # HF_ENVIRONMENT should be set to aio in CircleCI env vars
             HF_ENVIRONMENT=aio pytest --cov ./humanfirst/ --cov-report html --cov-report term -s
             ./aio.sh stop
 
