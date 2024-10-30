@@ -240,9 +240,6 @@ class Authorization:
             raise HFAPIAuthException(
                 f'Not authorized, Google returned {auth_response.status_code} {auth_response.json()}')
 
-        # sleep for a 10th of a second to account for slight clock drifts with the GCP server
-        # time.sleep(0.01)
-
         self.bearer_token_dict["token"] = auth_response.json().get("idToken")
         self.bearer_token_dict["refresh_token"] = auth_response.json().get("refreshToken")
         # Now validate the JWT token
