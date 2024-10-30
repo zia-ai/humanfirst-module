@@ -39,17 +39,20 @@ jobs:
             sudo systemctl start systemd-timesyncd
             sudo apt-get install ntpdate -y
             sudo apt-get install net-tools -y
-            mkdir -p aio-logs
       - gcp-cli/setup:
           use_oidc: true
           components: docker-credential-gcr kubectl --quiet
       - gcloud-sdk
-
       - python/install-packages:
           pkg-manager: pip
       - run:
           name: Start AIO container and run tests
-          command: sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test
+          command: | 
+            sudo timedatectl set-ntp true
+            sudo systemctl restart systemd-timesyncd
+            ./aio.sh start
+            HF_ENVIRONMENT=aio pytest --cov ./humanfirst/ --cov-report html --cov-report term -s
+            ./aio.sh stop
 
 workflows:
   test-aio: 
