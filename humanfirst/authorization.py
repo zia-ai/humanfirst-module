@@ -240,12 +240,15 @@ class Authorization:
             raise HFAPIAuthException(
                 f'Not authorized, Google returned {auth_response.status_code} {auth_response.json()}')
 
+<<<<<<< HEAD
         # Previously this was where there was a wait duration was used to allow for virualisation/internet clock drift
         # this is now handled by decoding the JWT token and allowing the inbuilt PyJWT Leeway functions on both
         # SDK and product side.  If you encounter "token used before issued" issues it is normally to do with some aspect
         # of internet deployment or virtualisation and clock drift.  Turn on DEBUG level logging to get full detailed
         # information of the internal token times to be able to resolve where the issue lies.
 
+=======
+>>>>>>> 1711f34dfae7b19376b515797c54f5c06d2a0709
         self.bearer_token_dict["token"] = auth_response.json().get("idToken")
         self.bearer_token_dict["refresh_token"] = auth_response.json().get("refreshToken")
         # Now validate the JWT token
