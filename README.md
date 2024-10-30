@@ -96,7 +96,7 @@ mkdir src/logs/
 Pull the container down, start the container and run pytest
 * Run AIO container `CI=true EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh start`
 * Get IP address - `docker inspect aio`
-* Set enviroment variable BASE_URL_TEST `export BASE_URL_TEST=http://172.17.0.3:8888`. Replace 172.17.0.3 with your IP address.
+* Set enviroment variable BASE_URL_TEST `export BASE_URL_TEST=http://172.17.0.3:8888`. Replace 172.17.0.3 with your IP address. Set this variable from where ever you are going to run pytest (academy workbench, dedicated humanfirst-module container, etc)
 * Run Pytest - `pytest --cov ./humanfirst/ --cov-report html --cov-report term`
 * Stop AIO container `CI=true ./aio.sh stop`
 
