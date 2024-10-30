@@ -2,9 +2,6 @@
 
 Humanfirst tests
 
-When running the aio container locally, if tests fail because of "Token used before issued" error,
-    then it is caused by clock skew issue where the client and server time is not synchronised.
-    This happens only locally. The circleci works without any issues.
 """
 # ***************************************************************************80**************************************120
 
