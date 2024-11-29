@@ -1229,8 +1229,13 @@ class HFAPI:
                                  namespace:str,
                                  conversation_set_src_id: str,
                                  file_name:str,
-                                 timeout: float = None):
-        """Deletes a specific file within a convo set."""
+                                 timeout: float = None,
+                                 no_trigger: bool = False):
+        """Deletes a specific file within a convo set.
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them.  If you use this you must 
+        upload or delete a final file with no_trigger=False otherwise your conversation
+        set will be unusable"""
 
         headers = self._get_headers()
 
@@ -1302,8 +1307,13 @@ class HFAPI:
                                                 conversation_source_id: str,
                                                 upload_name: str,
                                                 fqfp: str,
-                                                timeout: float = None) -> dict:
-        '''Upload a JSON file to a conversation source'''
+                                                timeout: float = None,
+                                                no_trigger: bool = False) -> dict:
+        '''Upload a JSON file to a conversation source
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them.  If you use this you must 
+        upload or delete a final file with no_trigger=False otherwise your conversation
+        set will be unusable'''
         payload = {
             "namespace": namespace
         }
@@ -1316,9 +1326,14 @@ class HFAPI:
         # json.load(file_in)
         # file_in.close()
         upload_file = open(fqfp, 'rb')
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
         payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
         fields={
             'format': 'IMPORT_FORMAT_HUMANFIRST_JSON',
+            'no_trigger': str_no_trigger, # seem to remember there is a problem with encoding multiple fields in the multipart encoder
             'file': (upload_name, upload_file, 'application/json')}
         )
         # This is the magic bit - you must set the content type to include the boundary information
@@ -1411,6 +1426,7 @@ class HFAPI:
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
             source_kind: int = 2, # DEFAULT TO GENERATED
+            await_next_index: bool = False,
             timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
@@ -1430,7 +1446,9 @@ class HFAPI:
             },
             #other filters..
         ]
-        '''
+        
+        await_next_index means that the call will not fail if the index is not available but will instead waitT
+        TODO query.pb.go QueryConversationInputsRequest top level'''
 
 
         if metadata_predicate is None:
@@ -1552,6 +1570,9 @@ class HFAPI:
             },
             "order_direction": order_direction
         }
+        
+        if await_next_index:
+            payload["await_next_index"] = True
 
         headers = self._get_headers()
 
