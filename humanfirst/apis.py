@@ -1426,11 +1426,12 @@ class HFAPI:
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
             source_kind: int = 2, # DEFAULT TO GENERATED
-            await_next_index: bool = False,
             timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
         CSV text file
+        
+        By default waits for the new index to be available
 
         source_kind
         SOURCE_KIND_UNSPECIFIED = 0;
@@ -1570,9 +1571,6 @@ class HFAPI:
             },
             "order_direction": order_direction
         }
-        
-        if await_next_index:
-            payload["await_next_index"] = True
 
         headers = self._get_headers()
 
