@@ -1234,8 +1234,8 @@ class HFAPI:
         """Deletes a specific file within a convo set.
         no_trigger=True prevents indexes from building if passed in case you want to delete
         or upload additional files before triggering them.  If you use this you must 
-        upload or delete a final file with no_trigger=False otherwise your conversation
-        set will be unusable"""
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes."""
 
         headers = self._get_headers()
 
@@ -1312,8 +1312,8 @@ class HFAPI:
         '''Upload a JSON file to a conversation source
         no_trigger=True prevents indexes from building if passed in case you want to delete
         or upload additional files before triggering them.  If you use this you must 
-        upload or delete a final file with no_trigger=False otherwise your conversation
-        set will be unusable'''
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes.'''
         payload = {
             "namespace": namespace
         }
