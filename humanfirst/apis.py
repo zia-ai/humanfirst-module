@@ -1333,7 +1333,9 @@ class HFAPI:
         payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
         fields={
             'format': 'IMPORT_FORMAT_HUMANFIRST_JSON',
-            'no_trigger': str_no_trigger, # seem to remember there is a problem with encoding multiple fields in the multipart encoder
+            'no_trigger': str_no_trigger, 
+            # seem to remember there is a problem with encoding multiple fields in the toolbelt multipart encoder but this seems effective during testing
+            # if I remember correctly this is present where the values are subobjects, but this is top level so seems OK?
             'file': (upload_name, upload_file, 'application/json')}
         )
         # This is the magic bit - you must set the content type to include the boundary information
