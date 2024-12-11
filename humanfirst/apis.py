@@ -1433,7 +1433,8 @@ class HFAPI:
         '''Returns the generated data as as JSON or a as a
         CSV text file
         
-        By default waits for the new index to be available
+        By default waits for the new index to be available if
+        one is being downloaded at the moment it is called
 
         source_kind
         SOURCE_KIND_UNSPECIFIED = 0;
@@ -1449,9 +1450,7 @@ class HFAPI:
             },
             #other filters..
         ]
-        
-        await_next_index means that the call will not fail if the index is not available but will instead waitT
-        TODO query.pb.go QueryConversationInputsRequest top level'''
+        '''
 
 
         if metadata_predicate is None:
