@@ -1239,8 +1239,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
+        # check no trigger        
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
+
         payload = {
             "namespace":namespace,
+            "no_trigger": str_no_trigger,
             "filename": file_name,
             "conversation_set_id":conversation_set_src_id
         }
