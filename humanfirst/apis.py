@@ -1247,13 +1247,16 @@ class HFAPI:
 
         payload = {
             "namespace":namespace,
-            "no_trigger": str_no_trigger,
+            "no_trigger": no_trigger, # TODO: debugging this should it be a string or a boolean?  json.dumps will change True to true, no quotes
             "filename": file_name,
-            "conversation_set_id":conversation_set_src_id
+            "conversation_source_id":conversation_set_src_id
         }
+        print(payload)
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
+        
+        print(json.dumps(payload))
 
         response = requests.request(
             "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)

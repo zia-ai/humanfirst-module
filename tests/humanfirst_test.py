@@ -1039,7 +1039,8 @@ def test_no_trigger():
                                                       file_name="abcd_109_test",
                                                       no_trigger=True)
     print(delete_response)    
-    # TODO: triggerId is in here, and is non-blank?  Is this a bug.
+    # TODO: triggerId is in here, and is non-blank?  Is this a bug? 
+    # Yes AP identified - fix developed needs merge
         
     # Now delete and check the trigger
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
