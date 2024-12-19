@@ -1,0 +1,302 @@
+{
+    "$schema": "https://docs.humanfirst.ai/hf-json-schema.json",
+    "examples": [
+        {
+            "id": "example-109-0",
+            "text": "Hi! How cna i help you?",
+            "created_at": "2022-05-01T14:34:03Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "000",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-109-1",
+            "text": "hi",
+            "created_at": "2022-05-01T14:34:20Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "001",
+                "first_customer_utt": "TRUE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-2",
+            "text": "i'm looking to have my name embroidered on a jacket",
+            "created_at": "2022-05-01T14:34:37Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "002",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "TRUE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-3",
+            "text": "any idea how much that costs?",
+            "created_at": "2022-05-01T14:34:54Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "003",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-4",
+            "text": "i was thinking of have the name stitched on the guess jacket that i just bought",
+            "created_at": "2022-05-01T14:35:11Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "004",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-5",
+            "text": "Stiching and engraving costs depend on how much text is added. Stiching costs 30 cents per character for the first 15 characters, 20 cents per character for the next 15 characters, and 10 cents per character for any additional characters.",
+            "created_at": "2022-05-01T14:35:28Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "005",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "expert"
+            }
+        },
+        {
+            "id": "example-109-6",
+            "text": "oh great, thanks so much",
+            "created_at": "2022-05-01T14:35:45Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "006",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-7",
+            "text": "thanks for the info",
+            "created_at": "2022-05-01T14:36:02Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "007",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-8",
+            "text": "do i need to do anything else?",
+            "created_at": "2022-05-01T14:36:19Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "008",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-9",
+            "text": "are you still there?  i think you're the one that needs to wrap up the convo",
+            "created_at": "2022-05-01T14:36:36Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "009",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "TRUE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "customer",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "client"
+            }
+        },
+        {
+            "id": "example-109-10",
+            "text": "THat's it!",
+            "created_at": "2022-05-01T14:36:53Z",
+            "intents": [],
+            "tags": [],
+            "metadata": {
+                "abcd_id": "109",
+                "conversation_turn": "010",
+                "first_customer_utt": "FALSE",
+                "second_customer_utt": "FALSE",
+                "last_customer_utt": "FALSE",
+                "scenario_personal_member_level": "bronze",
+                "scenario_order_city": "newark",
+                "scenario_flow": "storewide_query",
+                "scenario_subflow": "pricing_2",
+                "scenario_product_names": "tommy_hilfiger jacket,tommy_hilfiger jacket,guess jacket",
+                "abcd_role": "agent",
+                "nps_score": "8",
+                "tuned_resolution": "No"
+            },
+            "context": {
+                "context_id": "109",
+                "context_type": "conversation",
+                "role": "expert"
+            }
+        }
+    ]
+}
