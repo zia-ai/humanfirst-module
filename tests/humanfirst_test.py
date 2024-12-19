@@ -1022,56 +1022,54 @@ def test_no_trigger():
                                                             upload_name="abcd_109_test",
                                                             fqfp="./examples/abcd_2022_05_convo_109.json",
                                                             no_trigger=False)
-                
+
     print(upload_response)
     assert "triggerId" in upload_response.keys()
-    
+
     # Check that trigger
     wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
                                          max_loops=100, 
                                          namespace=TEST_NAMESPACE,
                                          trigger_id=upload_response["triggerId"])
     assert wait_time_till_done > 0
-    
+
     # delete a file the same way starting with the most recent
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                       conversation_set_src_id=conversation_obj["convosrc_id"],
                                                       file_name="abcd_109_test",
                                                       no_trigger=True)
-    print(delete_response)    
-    # TODO: triggerId is in here, and is non-blank?  Is this a bug? 
+    print(delete_response)
+    # TODO: triggerId is in here, and is non-blank?  Is this a bug?
     # Yes AP identified - fix developed needs merge
-        
+
     # Now delete and check the trigger
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                       conversation_set_src_id=conversation_obj["convosrc_id"],
                                                       file_name="abcd_108_test",
                                                       no_trigger=False)
-    print(delete_response)    
-    
+    print(delete_response)
+
     # Check that trigger
     wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
                                          max_loops=100, 
                                          namespace=TEST_NAMESPACE,
                                          trigger_id=delete_response["triggerId"])
     assert wait_time_till_done > 0
-    
+
     # delete the workspace
-    delete_workspace_response = _del_playbook(hf_api=hf_api,namespace=TEST_NAMESPACE,playbook_id=playbook_id)
-    print(delete_workspace_response)
-    
-    
+    _del_playbook(hf_api=hf_api,namespace=TEST_NAMESPACE,playbook_id=playbook_id)
+
     # delete conversation set
     delete_convo_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                                         convoset_id=conversation_obj["convoset_id"])
     print(delete_convo_response)
 
-    
-def _loop_trigger_check_until_done(hf_api: humanfirst.apis.HFAPI, 
+
+def _loop_trigger_check_until_done(hf_api: humanfirst.apis.HFAPI,
                                    max_loops: int,
-                                   namespace: str, 
-                                   trigger_id: str, 
-                                   increment: int = 0, 
+                                   namespace: str,
+                                   trigger_id: str,
+                                   increment: int = 0,
                                    log_note: str = "",
                                    timeout: int = 120) -> int:
     """Loops round and waits for TRIGGER_STATUS_COMPLETE
@@ -1106,15 +1104,14 @@ def _loop_trigger_check_until_done(hf_api: humanfirst.apis.HFAPI,
         return total_wait
     else:
         return 0
-    
 
 def test_delete_conversation_set():
     """testing delete test convosets if exist"""
 
     hf_api = humanfirst.apis.HFAPI()
-    
+
     convoset_list = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
-    
+
     # Loop through deleting any that exist
     for c in convoset_list:
         if c["name"] == TEST_CONVOSET:
@@ -1122,5 +1119,3 @@ def test_delete_conversation_set():
             delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                            convoset_id=c["id"])
             print(delete_response)
-
-    
