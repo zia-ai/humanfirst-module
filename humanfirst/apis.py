@@ -841,14 +841,21 @@ class HFAPI:
     def batchPredict(self, sentences: list, # pylint: disable=invalid-name
                      namespace: str,
                      playbook: str,
-                     timeout: float = None) -> dict:
+                     timeout: float = None,
+                     model_id: str = "",
+                     revision_id: str = "") -> dict:
         '''Get response_dict of matches and hier matches for a batch of sentences
-        TODO: model version changes'''
+        Accepts an optional model_id and revision_id to run it against a previous
+        version of the NLU, if these are not provided it defaults to the latest'''
         payload = {
             "namespace": "string",
             "playbook_id": "string",
-            "input_utterances": sentences
+            "input_utterances": sentences,
         }
+        if model_id != "":
+            payload["model_id"] = model_id
+        if revision_id != "":
+            payload["revision_id"] = revision_id
 
         headers = self._get_headers()
 
