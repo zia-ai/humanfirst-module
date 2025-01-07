@@ -1,15 +1,18 @@
-# 🚀 HumanFirst SDK (`humanfirst-module`)
+# 🚀 HumanFirst SDK (humanfirst-module)
 
-The **HumanFirst SDK (`humanfirst-module`)** is a Python package that simplifies the integration and interaction with the [HumanFirst platform](https://www.humanfirst.ai/) - It is a no-code tool specializing in Data Engineering, Prompt Engineering, Context Engineering, Conversational AI and NLU.
+---
+The **HumanFirst SDK (humanfirst-module)** is a Python package that simplifies the integration and interaction with the [HumanFirst platform](https://www.humanfirst.ai/) - It is a no-code tool specializing in Data Engineering, Prompt Engineering, Context Engineering, Conversational AI and NLU.
 
 SDK provides a set of tools, helper classes, and API methods to streamline working with the **HumanFirst JSON format**, **API endpoints**, and **Secure authorization**.
 
+---
 
 ## 🎯 Key Features
-* **HumanFirst Objects (HFObjects)**: Helper classes to describe, validate, and manipulate the core data structures used in the HumanFirst platform.
+* **HumanFirst Objects**: Helper classes to describe, validate, and manipulate the core data structures used in the HumanFirst platform.
 * **HumanFirst APIs**: A streamlined way to interact with the HumanFirst APIs for managing datasets, labels, prompts, pipelines and more.
 * **Secure Authorization**: Simplified handling of secure API authentication and token management.
 
+---
 
 ## 📦 Installation
 
@@ -19,6 +22,7 @@ Install the package using `pip`:
 pip install humanfirst
 ```
 
+---
 
 ## 🧩 Components Overview
 1. **humanfirst.objects**: A set of helper classes and methods for describing, validating, and interacting with HFObjects that make up the HumanFirst JSON format.
@@ -36,6 +40,7 @@ pip install humanfirst
     * Manage API keys and tokens.
     * Ensure secure communication with the HumanFirst platform.
 
+---
 
 ## 📖 Usage Example
 Here's a basic example of how to use the HumanFirst SDK to connect to the HumanFirst API and perform operations:
@@ -54,6 +59,8 @@ playbook_list = hf_api.list_playbooks(namespace="<namespace>")
 print(playbook_list)
 ```
 
+---
+
 ## 🔧 Configuration Files
 The package includes configuration files located in the config/ directory. 
 
@@ -66,12 +73,16 @@ config/
 * logging.conf - contains all the logging related configurations
 * setup.cfg - contains all important default constants
 
+---
+
 ## 📚 API Reference
 For detailed API reference, visit the official documentation:
 
 📖 Documentation: https://docs.humanfirst.ai/docs/api/
 
 📂 Source Code APIs: https://github.com/zia-ai/humanfirst-module/blob/master/humanfirst/apis.py
+
+---
 
 ## 🤝 Contributing
 We welcome contributions to the HumanFirst SDK! If you find a bug or have a feature request, please open an issue on GitHub.
@@ -81,8 +92,12 @@ We welcome contributions to the HumanFirst SDK! If you find a bug or have a feat
 * Create a new branch for your feature/bugfix.
 * Submit a pull request.
 
+---
+
 ## 📄 License
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/zia-ai/humanfirst-module/blob/master/LICENSE) file for more details.
+
+---
 
 ## 💬 Support
 If you have any questions or need support, feel free to reach out:
@@ -90,6 +105,8 @@ If you have any questions or need support, feel free to reach out:
 📧 Email: fayaz@humanfirst.ai
 
 💻 GitHub Issues: https://github.com/zia-ai/humanfirst-module/issues
+
+---
 
 ## ⚙️ Development Setup
 For contributors and developers, you can set up the package locally by cloning the repository and installing the necessary dependencies:
@@ -114,9 +131,12 @@ pytest
 
 For more details on developer setup visit Developer [REAME.md](https://github.com/zia-ai/humanfirst-module/blob/master/README.md)
 
+---
 
 ## 📢 Changelog
 See the [CHANGELOG](https://pypi.org/project/humanfirst/#history) for details on the latest updates and changes to the package.
+
+---
 
 ## 🔗 Links
 🌐 Official Website: https://www.humanfirst.ai

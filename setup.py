@@ -51,7 +51,7 @@ setup(
     classifiers=CLASSIFIERS,
     url="https://humanfirst.ai",  # Homepage URL
     project_urls={
-        "Documentation": "https://humanfirst.readthedocs.io",
+        "Documentation": "https://docs.humanfirst.ai/docs/",
         "Source": "https://github.com/zia-ai/humanfirst-module"
     },
     license='MIT',
