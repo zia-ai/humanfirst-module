@@ -145,7 +145,7 @@ class HFCredentialNotAvailableException(Exception):
         super().__init__(self.message)
 
 
-class Authorization:
+class FirebaseAuthorization:
     """HF Authorization"""
 
     bearer_token_dict: dict

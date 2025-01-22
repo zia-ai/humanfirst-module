@@ -15,6 +15,7 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
+import warnings
 import time # pylint: disable=unused-import
 
 # third party imports
@@ -23,7 +24,7 @@ import requests_toolbelt
 from dotenv import load_dotenv, find_dotenv
 
 # custom imports
-from .authorization import Authorization
+from .firebase_authorization import FirebaseAuthorization
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -34,6 +35,8 @@ path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
 
 CLOCK_SYNC_DRIFT_AMBIGUITY = 0
+FIREBASE = "firebase"
+API_KEY = "api_key"
 
 # constants need type conversion from str to int
 TIMEOUT = float(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
@@ -150,6 +153,13 @@ class HFAPIParameterException(Exception):
         self.message = message
         super().__init__(self.message)
 
+class HFAPIAuthenticationTypeException(Exception):
+    """When authentication is neither firebase nor api key"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
 class HFEnvironmentException(Exception):
     """When user provides an incorrect environment"""
 
@@ -167,7 +177,9 @@ class HFAPI:
 
     bearer_token: dict
 
-    def __init__(self, username: str = "",
+    def __init__(self,
+                 api_key: str = "",
+                 username: str = "",
                  password: str = "",
                  environment: str = "",
                  api_version: str = "",
@@ -176,11 +188,23 @@ class HFAPI:
         Initializes bearertoken
 
         Recommended to store the credentials only as environment variables
-        There are 4 ways username and password is passed onto the object
-        1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
-        2. You can authentivcate using Humanfirst CLI and it will set the CLI specific environment variables for you.
-        3. A .env file be placed in the root directory of the project.
-        4. username and password can be used while instantiating the object.
+        There are 2 ways of authentication
+        1. Using HumanFirst API Key
+        2. Using Firebase (HumanFirst username and password)
+        
+        1. Using HumanFirst API Key
+            This is the recommended authentication
+            There are 3 ways api key is passed onto the object
+            1.1. HF_API_KEY can be set as environment variables
+                1.1.1. Using CLI
+                1.1.2. A .env file be placed in the root directory of the project.
+            1.2. api_key can be passed while instantiating the object.
+        2. Using Firebase (HumanFirst username and password)
+            There are 4 ways username and password is passed onto the object
+            2.1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
+                2.1.1. Using CLI
+                2.1.2. A .env file be placed in the root directory of the project.
+            2.2. username and password can be passed while instantiating the object.
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -232,10 +256,22 @@ class HFAPI:
         if self.base_url[-1] == "/":
             self.base_url = self.base_url[:-1]
 
-        self.auth = Authorization(username=username,
-                                  password=password,
-                                  environment=self.studio_environment,
-                                  timeout=self.timeout)
+        if api_key == "":
+            # this automatically checks if the api_key variable is available in CLI first
+            # and then checks the .env varaiables
+            api_key = os.environ.get("HF_API_KEY")
+            if api_key is None:
+                warnings.warn("Recommended authentication is using HumanFirst API key.")
+                warnings.warn("HF_API_KEY environment variable is not set.")
+                warnings.warn("Proeceeding with firebase authentication")
+                self.auth_type = FIREBASE
+                self.firebase_auth = FirebaseAuthorization(username=username,
+                                                  password=password,
+                                                  environment=self.studio_environment,
+                                                  timeout=self.timeout)
+            else:
+                self.auth_type = API_KEY
+                self.api_key = api_key
 
     def _validate_response(self,
                            response: requests.Response,
@@ -966,11 +1002,16 @@ class HFAPI:
     def  _get_headers(self) -> dict:
         """Produce the necessary header"""
 
-        # validate the token
-        self.auth.validate_jwt()
+        if self.auth_type == FIREBASE:
+            # validate the token
+            self.firebase_auth.validate_jwt()
+            bearer_string = f'Bearer {self.firebase_auth.bearer_token_dict["token"]}'
+        elif self.auth_type == API_KEY:
+            bearer_string = f'Bearer {self.api_key}'
+        else:
+            raise HFAPIAuthenticationTypeException("Authentication type is neither firebase not api_key")
 
         headers = {}
-        bearer_string = f'Bearer {self.auth.bearer_token_dict["token"]}'
         headers = {
             'Content-Type': 'application/json; charset=utf-8',
             'Accept': 'application/json',
