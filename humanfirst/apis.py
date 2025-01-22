@@ -46,6 +46,7 @@ BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -193,7 +194,7 @@ class HFAPI:
             environment = os.environ.get("HF_ENVIRONMENT")
             if environment is None:
                 environment = "prod"
-            self.studio_environment = environment
+        self.studio_environment = environment
 
         if api_version == "":
             # this automatically checks if the environment variable is available in CLI first
@@ -201,7 +202,7 @@ class HFAPI:
             api_version = os.environ.get("HF_API_VERSION")
             if api_version is None:
                 api_version = "v1alpha1"
-            self.api_version = api_version
+        self.api_version = api_version
 
         self.timeout = timeout
 
@@ -221,9 +222,11 @@ class HFAPI:
             self.base_url = BASE_URL_QA
         elif self.studio_environment == "pre_prod":
             self.base_url = BASE_URL_PRE_PROD
+        elif self.studio_environment == "local":
+            self.base_url = BASE_URL_LOCAL
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod, local")
 
         # Check if URL ends with /
         if self.base_url[-1] == "/":
@@ -369,11 +372,15 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks(self, namespace: str, timeout: float = None) -> dict:
+    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
-        Note namepsace parameter doesn't appear to provide filtering'''
+        Note namepsace parameter doesn't appear to provide filtering
+        
+        If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
+        '''
         payload = {
-            "namespace": namespace
+            "namespace": namespace,
+            "conversation_set_id": conversation_set_id,
         }
 
         headers = self._get_headers()
@@ -1246,7 +1253,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        # check no trigger        
+        # check no trigger
         if no_trigger:
             str_no_trigger = "true"
         else:
@@ -1262,7 +1269,7 @@ class HFAPI:
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
-        
+
         print(json.dumps(payload))
 
         response = requests.request(

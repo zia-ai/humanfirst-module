@@ -36,6 +36,7 @@ STAGING_AUDIENCE = constants.get("humanfirst.CONSTANTS","STAGING_AUDIENCE")
 PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PROD_AUDIENCE")
 QA_AUDIENCE = constants.get("humanfirst.CONSTANTS","QA_AUDIENCE")
 PRE_PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PRE_PROD_AUDIENCE")
+LOCAL_AUDIENCE = constants.get("humanfirst.CONSTANTS","LOCAL_AUDIENCE")
 TEST_AUDIENCE = constants.get("humanfirst.CONSTANTS","TEST_AUDIENCE")
 GOOGLE_CERTS_URL = constants.get("humanfirst.CONSTANTS","GOOGLE_CERTS_URL")
 TEST_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","TEST_SIGN_IN_API_KEY")
@@ -43,6 +44,7 @@ PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KE
 STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
 QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
 PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
+LOCAL_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","LOCAL_SIGN_IN_API_KEY")
 TOKEN_REVALIDATE_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TOKEN_REVALIDATE_WAIT_TIME"))
 
 # locate where we are
@@ -202,6 +204,9 @@ class Authorization:
         elif environment == "pre_prod":
             self.audience = PRE_PROD_AUDIENCE
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
+        elif environment == "local":
+            self.audience = LOCAL_AUDIENCE
+            self.identity_api_key = LOCAL_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
                 "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
