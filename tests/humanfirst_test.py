@@ -100,6 +100,58 @@ def _del_playbook(hf_api: humanfirst.apis.HFAPI,
             valid_playbook_id = True
     assert valid_playbook_id is False
 
+def test_get_conversation_set_list():
+    """Test filtering conversation set with conversation source id"""
+
+    hf_api = humanfirst.apis.HFAPI()
+
+    try:
+        conversation_obj1 = hf_api.create_conversation_set_with_set_and_src_id(namespace=TEST_NAMESPACE,
+                                                                            convoset_name=TEST_CONVOSET)
+        
+        try:
+            conversation_obj2 = hf_api.create_conversation_set_with_set_and_src_id(namespace=TEST_NAMESPACE,
+                                                                                convoset_name="dummy set")
+            
+            res = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
+
+            assert len(res) >= 2
+
+            res2 = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE,
+                                                    conversation_source_id=conversation_obj1["convosrc_id"])
+
+            assert len(res2) == 1
+            
+            print(json.dumps(res2,indent=2))
+
+            hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                        convoset_id=conversation_obj2["convoset_id"])
+        
+        except (RuntimeError,AssertionError) as e:
+            print(e)
+            hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                            convoset_id=conversation_obj2["convoset_id"])
+            raise
+            
+        hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                    convoset_id=conversation_obj1["convoset_id"])
+    
+    except (RuntimeError,AssertionError) as e:
+        print(e)
+        hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
+                                        convoset_id=conversation_obj1["convoset_id"])
+        raise
+
+
+
+
+        
+
+
+
+
+
+
 def test_list_playbooks():
     """Test listing playbooks with and without a conversation_set_id"""
 

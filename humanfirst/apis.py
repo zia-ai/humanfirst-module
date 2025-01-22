@@ -1025,10 +1025,16 @@ class HFAPI:
     # Conversation sets
     # *****************************************************************************************************************
 
-    def get_conversation_set_list(self, namespace: str, timeout: float = None) -> tuple:
+    def get_conversation_set_list(self,
+                                  namespace: str,
+                                  conversation_source_id: str = "",
+                                  timeout: float = None) -> tuple:
         """Get all the conversation sets and their info for a namespaces"""
 
-        payload = {}
+        payload = {
+            "namespace":namespace,
+            "conversation_source_id": conversation_source_id
+        }
 
         headers = self._get_headers()
 
