@@ -1,135 +1,92 @@
-# humanfirst-module
-Humanfirst module package
+# 🚀 HumanFirst SDK (humanfirst-module)
 
-## Create Virtual Environment to do any dev work and perform pytest work
+---
+The **HumanFirst SDK (humanfirst-module)** is a Python package that simplifies the integration and interaction with the [HumanFirst platform](https://www.humanfirst.ai/) - It is a no-code tool specializing in Data Engineering, Prompt Engineering, Context Engineering, Conversational AI and NLU.
+
+SDK provides a set of tools, helper classes, and API methods to streamline working with the **HumanFirst JSON format**, **API endpoints**, and **Secure authorization**.
+
+---
+
+## 🎯 Key Features
+* **HumanFirst Objects**: Helper classes to describe, validate, and manipulate the core data structures used in the HumanFirst platform.
+* **HumanFirst APIs**: A streamlined way to interact with the HumanFirst APIs for managing datasets, labels, prompts, pipelines and more.
+* **Secure Authorization**: Simplified handling of secure API authentication and token management.
+
+---
+
+## 📦 Installation
+
+Install the package using `pip`:
+
+```bash
+pip install humanfirst
+```
+
+---
+
+## 🧩 Components Overview
+1. **humanfirst.objects**: A set of helper classes and methods for describing, validating, and interacting with HFObjects that make up the HumanFirst JSON format.
+
+    * Validate and manipulate HumanFirst objects.
+    * Convert between Python objects and HumanFirst JSON structures.
+
+2. **humanfirst.apis**: Helper classes to interact with the HumanFirst APIs.
+
+    * Perform CRUD operations on datasets and projects.
+    * Easily integrate HumanFirst functionalities into your applications.
+
+3. **humanfirst.authorization**: Handles secure authorization for interacting with HumanFirst APIs.
+
+    * Manage API keys and tokens.
+    * Ensure secure communication with the HumanFirst platform.
+
+---
+
+## 📖 Usage Example
+Here's a basic example of how to use the HumanFirst SDK to connect to the HumanFirst API and perform operations:
+
+[Authentication](#authentication)
+
+```python
+import humanfirst
+
+# Step 1 : Initialize the API
+hf_api = humanfirst.apis.HFAPI()
+
+# Step 2: Perform an API call (e.g., fetching a list of projects)
+playbook_list = hf_api.list_playbooks(namespace="<namespace>")
+
+print(playbook_list)
+```
+
+---
+
+## ⚙️ Development Setup
+For contributors and developers, you can set up the package locally by cloning the repository and installing the necessary dependencies:
+
+```bash
+# Clone the repo
+git clone https://github.com/zia-ai/humanfirst-module.git
+
+# Navigate into the project directory
+cd humanfirst-module
+```
+
+### Create Virtual Environment to do any dev work and perform pytest work
 * Remove any previously created virtual env `rm -rf ./venv`
 * Create virtualenv & activate `python3 -m venv venv` 
 * if bash shell `source venv/bin/activate` **In case of deactivating use "deactivate"**
 * Update PiP `python -m pip install --upgrade pip`
 * install requirements  `pip install -r requirements.txt --no-cache`
 
-## Using pytest to test everything is working fine
+### Authentication
+1. Either use firebase authentication
+    * Set your HF_USERNAME and HF_PASSWORD env variable
+2. Or use HumanFirst API Key
+    * Set HF_API_KEY env variable
+    * Steps to get API key - https://api-keys.humanfirst-docs.pages.dev/docs/api/
 
-First you need to decide if you are going to test locally or against staging/prod.
-Start with staging and production.
-
-Set your HF_USERNAME and HF_PASSWORD env variable to match the environment you wish to test against.
-
-### Running on production
-
-This is the default.
-
-`pytest --cov ./humanfirst/ --cov-report html --cov-report term`
-* --cov-report html - produces a report in HTML page
-* --cov-report term - prints the report in console
-* --cov-report term:skip-covered - helps to see uncovered parts
-
-### Running on staging
-**Note: Staging access is available only for internal team members**
-
-Switch environment variable `HF_ENVIRONMENT` = "staging"
-
-Reset `HF_USERNAME` and `HF_PASSWORD` to be the relevant staging values.
-
-To check are running on staging set `HF_LOG_CONSOLE_ENABLE` = TRUE and `HF_LOG_LEVEL` = DEBUG
-
-Start the test again but with the console output printed
-`pytest --cov ./humanfirst/ --cov-report html --cov-report term -s`
-
-You should see it calling `https://api-staging.humanfirst.ai:443` in the logs
-
-### Testing using Docker build for this module
-**Note: Doing this requires the ability to run docker commands. You may need to run this from outside your local academy workbench** 
-
-Check docker is working with `docker run hello-world` or `sudo docker run hello-world` depending on whether you have a user or root docker setup.
-
-* `docker build . -t humanfirst-module:latest --no-cache`
-To run the tests for this module we pass through the necessary env variables
-`echo $HF_ENVIRONMENT $BASE_URL_TEST $HF_USERNAME $HF_PASSWORD`
-
-```sh
-docker run \
--e "HF_ENVIRONMENT=$HF_ENVIRONMENT" \
--e "BASE_URL_TEST=$BASE_URL_TEST" \
--e "HF_USERNAME=$HF_USERNAME" \
--e "HF_PASSWORD=$HF_PASSWORD" \
---name humanfirst-module-0 \
-humanfirst-module \
-pytest -s --cov ./humanfirst/ --cov-report term
-```
-
-## Build Package
-
-### Wipe your build dir first to be sure
-`rm -rf ./build ./dist`
-
-### Then build
-`python setup.py sdist bdist_wheel`
-
-## Test packages before uploading
-Packages can be tested using TestPYPI before uploading to PYPI - https://packaging.python.org/en/latest/guides/using-testpypi/
-
-Register in TestPYPI - https://test.pypi.org/account/register/
-
-Enable 2 factor authentication and generate API token using Account settings
-
-### Set TestPYPI password using keyring
-`keyring set system __token__`
-
-It'll prompt for a password - give it the API key
-Theoretically this stops you having to put in your username and password each time.
-
-Then Enter your TestPYPI API token
-
-### Publish the package to TestPYPI
-`twine upload --repository testpypi dist/*`
-
-Username: `__token__`
-
-Password: `API token`
-
-### Using TestPyPI with pip
-`pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ <your-package>`
-
-## Upload packages to PYPI
-Register in PYPI - https://pypi.org/account/register/
-
-Enable 2 factor authentication and generate API token using Account settings
-
-### Set PYPI password using keyring
-`keyring set system __token__`
-
-Then Enter your PYPI API token
-
-### Publish the package to PYPI
-`twine upload dist/*`
-
-Username: `__token__`
-
-Password: `API token`
-
-## To install humanfirst package locally into academy
-
-`python -m pip install -e ../humanfirst-module/`
-
-## To install humanfirst package locally into humanfirst-module
-
-`python3 -m pip install -e .`
-
-## To install humanfirst package locally into humanfirst-module using the dist
-
-`pip install dist/humanfirst-<version number>.tar.gz --no-cache`
-
-or from academy example change the version number and the path...
-
-`pip install ../humanfirst-module/dist/humanfirst-1.1.3.tar.gz --no-cache`
-
-### CHECKS
-
-make sure any last minute build changes committed!
-pytest in academy
-
-## Log handling
+### Log handling
 * HF SDK logging offers multiple options. Either can save the logs, print them in the console, do both or none
 * To store the logs in a specific directory set HF_LOG_FILE_ENABLE to 'TRUE' and set the directory in HF_LOG_DIR where the log files needs to be stored.
 * Log file management
@@ -141,4 +98,94 @@ pytest in academy
 * To print the logs in console set exp to 'TRUE'
 * Default - the logs are neither saved nor printed onto console
 
-***Note: Control what files can go into SDK using Manifest.in file***
+### Using pytest to test everything is working fine
+#### Running on production
+
+This is the default.
+
+`pytest --cov ./humanfirst/ --cov-report html --cov-report term`
+* --cov-report html - produces a report in HTML page
+* --cov-report term - prints the report in console
+* --cov-report term:skip-covered - helps to see uncovered parts
+
+#### Testing using Docker build for this module
+
+Check docker is working with `docker run hello-world` or `sudo docker run hello-world` depending on whether you have a user or root docker setup.
+
+* `docker build . -t humanfirst-module:latest --no-cache`
+To run the tests for this module we pass through the necessary env variables
+`echo $HF_ENVIRONMENT $BASE_URL_TEST $HF_USERNAME $HF_PASSWORD`
+
+```sh
+docker run \
+-e "HF_USERNAME=$HF_USERNAME" \
+-e "HF_PASSWORD=$HF_PASSWORD" \
+--name humanfirst-module-0 \
+humanfirst-module \
+pytest -s --cov ./humanfirst/ --cov-report term
+```
+
+### To install humanfirst package locally
+
+`pip install dist/humanfirst-<version number>.tar.gz --no-cache`
+
+For more details on developer setup visit Developer [REAME.md](./humanfirst/README.md)
+
+---
+## 🔧 Configuration Files
+The package includes configuration files located in the config/ directory. 
+
+```bash
+config/
+│
+├── logging.conf
+└── setup.cfg
+```
+* logging.conf - contains all the logging related configurations
+* setup.cfg - contains all important default constants
+
+---
+
+## 📚 API Reference
+For detailed API reference, visit the official documentation:
+
+📖 Documentation: https://docs.humanfirst.ai/docs/api/
+
+📂 Source Code APIs: https://github.com/zia-ai/humanfirst-module/blob/master/humanfirst/apis.py
+
+---
+
+## 🤝 Contributing
+We welcome contributions to the HumanFirst SDK! If you find a bug or have a feature request, please open an issue on GitHub.
+
+### Steps to Contribute:
+* Fork the repository.
+* Create a new branch for your feature/bugfix.
+* Submit a pull request.
+
+---
+
+## 📄 License
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/zia-ai/humanfirst-module/blob/master/LICENSE) file for more details.
+
+---
+
+## 💬 Support
+If you have any questions or need support, feel free to reach out:
+
+📧 Email: fayaz@humanfirst.ai
+
+💻 GitHub Issues: https://github.com/zia-ai/humanfirst-module/issues
+
+---
+
+## 🔗 Links
+🌐 Official Website: https://www.humanfirst.ai
+
+📚 Documentation: https://docs.humanfirst.ai/docs
+
+🐙 GitHub Repo: https://github.com/zia-ai/humanfirst-module
+
+🐞 Issue Tracker: https://github.com/zia-ai/humanfirst-module/issues
+
+---
