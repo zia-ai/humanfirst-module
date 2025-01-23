@@ -328,11 +328,7 @@ class HFAPI:
 
     def get_tags(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns tags'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
-
+        payload = {}
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
@@ -414,14 +410,13 @@ class HFAPI:
         
         If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
         '''
-        payload = {
-            "namespace": namespace,
-            "conversation_set_id": conversation_set_id,
-        }
+        payload = {}
 
         headers = self._get_headers()
 
-        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        query_params = f"namespace={namespace}&conversation_set_id={conversation_set_id}"
+
+        url = f'{self.base_url}/{self.api_version}/playbooks?{query_params}'
         effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
@@ -512,10 +507,7 @@ class HFAPI:
 
     def get_intents(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get all the intents in a workspace'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -528,10 +520,7 @@ class HFAPI:
 
     def get_intent(self, namespace: str, playbook: str, intent_id: str, timeout: float = None) -> dict:
         '''Get the metdata for the intent needed'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -544,10 +533,7 @@ class HFAPI:
 
     def get_revisions(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get revisions for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -759,10 +745,7 @@ class HFAPI:
 
     def get_nlu_engines(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get nlu engines for the for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -775,11 +758,7 @@ class HFAPI:
 
     def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str, timeout: float = None) -> dict:
         '''Get nlu engine for the for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "nlu_id": nlu_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -791,10 +770,7 @@ class HFAPI:
 
     def list_trained_nlu(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -968,14 +944,7 @@ class HFAPI:
         DATA_TYPE_GENERATED = 3
         '''
 
-        payload = {
-            "namespace": namespace,
-            "playbook": playbook,
-            "confidence_threshold": confidence_threshold,
-            "coverage_type": coverage_type,
-            "data_selection": data_selection
-        }
-
+        payload = {}
         if model_id:
             payload["model_id"] = model_id
 
@@ -1031,14 +1000,12 @@ class HFAPI:
                                   timeout: float = None) -> tuple:
         """Get all the conversation sets and their info for a namespaces"""
 
-        payload = {
-            "namespace":namespace,
-            "conversation_source_id": conversation_source_id
-        }
-
+        payload = {}
         headers = self._get_headers()
 
-        url = f"{self.base_url}/{self.api_version}/conversation_sets?namespace={namespace}"
+        query_params = f"namespace={namespace}&conversation_source_id={conversation_source_id}"
+
+        url = f"{self.base_url}/{self.api_version}/conversation_sets?{query_params}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
 
@@ -1083,10 +1050,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        payload = {
-            "namespace":namespace,
-            "conversation_set_id":conversation_set_id
-        }
+        payload = {}
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
@@ -1254,10 +1218,7 @@ class HFAPI:
     def get_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Gets conversation set configuration"""
 
-        payload = {
-            "namespace": namespace,
-            "id": convoset_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1274,10 +1235,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        payload = {
-            "namespace":namespace,
-            "conversation_set_id":conversation_set_src_id
-        }
+        payload = {}
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
@@ -1681,9 +1639,7 @@ class HFAPI:
 
     def get_integrations(self, namespace: str, timeout: float = None):
         '''Returns all the integrations configured for a namespace'''
-        payload = {
-            "namespace": namespace
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1700,10 +1656,7 @@ class HFAPI:
         i.e call the integration in HF to detect in the integrated NLU
         what target/source workspaces there are.
         i.e in DF case find out what agents there are to import data from'''
-        payload = {
-            "namespace": namespace,
-            "integration_id":integration_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1795,10 +1748,7 @@ class HFAPI:
 
     def get_evaluation_presets(self, namespace: str, playbook: str, timeout: float = None):
         '''Get the presets to find the evaluation_preset_id to run an evaluation'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1841,11 +1791,7 @@ class HFAPI:
 
     def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation report as zip'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1862,11 +1808,7 @@ class HFAPI:
 
     def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation summary as json'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1883,10 +1825,7 @@ class HFAPI:
 
     def list_evaluations(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''List all evaluations in the given playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1908,12 +1847,7 @@ class HFAPI:
                            intent_id: str,
                            timeout: float = None) -> dict:
         '''Get a list of training phrases that were evaluated'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id,
-            "intent_id": intent_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1967,10 +1901,7 @@ class HFAPI:
 
     def describe_trigger(self, namespace: str, trigger_id: str, timeout: float = None):
         """Describe Trigger"""
-        payload = {
-            "namespace": namespace,
-            "trigger_id": trigger_id
-        }
+        payload = {}
 
         headers = self._get_headers()
         url = f'{self.base_url}/{self.api_version}/triggers/{namespace}/{trigger_id}'
@@ -2009,10 +1940,7 @@ class HFAPI:
                                 playbook_id: str,
                                 timeout: float = None) -> dict:
         '''List pipelines for a playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook_id,
-        }
+        payload = ()
 
         headers = self._get_headers()
         base_url = f'{self.base_url}/{self.api_version}/playbooks'
