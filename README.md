@@ -45,7 +45,7 @@ pip install humanfirst
 ## 📖 Usage Example
 Here's a basic example of how to use the HumanFirst SDK to connect to the HumanFirst API and perform operations:
 
-[Authentication](#authentication)
+Follow the authentication steps given in the development setup below.
 
 ```python
 import humanfirst
@@ -84,7 +84,7 @@ cd humanfirst-module
     * Set your HF_USERNAME and HF_PASSWORD env variable
 2. Or use HumanFirst API Key
     * Set HF_API_KEY env variable
-    * Steps to get API key - https://api-keys.humanfirst-docs.pages.dev/docs/api/
+    * Follow the steps [here](https://api-keys.humanfirst-docs.pages.dev/docs/api/) to get API key
 
 ### Log handling
 * HF SDK logging offers multiple options. Either can save the logs, print them in the console, do both or none
@@ -129,7 +129,7 @@ pytest -s --cov ./humanfirst/ --cov-report term
 
 `pip install dist/humanfirst-<version number>.tar.gz --no-cache`
 
-For more details on developer setup visit Developer [REAME.md](https://github.com/zia-ai/humanfirst-module/blob/master/humanfirst/README.md)
+For more details on developer setup visit Developer [README.md](https://github.com/zia-ai/humanfirst-module/blob/master/humanfirst/README.md)
 
 ---
 ## 🔧 Configuration Files
