@@ -20,9 +20,9 @@ Set your HF_USERNAME and HF_PASSWORD env variable to match the environment you w
 This is the default.
 
 `pytest --cov ./humanfirst/ --cov-report html --cov-report term`
---cov-report html - produces a report in HTML page
---cov-report term - prints the report in console
---cov-report term:skip-covered - helps to see uncovered parts
+* --cov-report html - produces a report in HTML page
+* --cov-report term - prints the report in console
+* --cov-report term:skip-covered - helps to see uncovered parts
 
 ### Running on staging
 **Note: Staging access is available only for internal team members**
