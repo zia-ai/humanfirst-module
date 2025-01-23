@@ -1044,3 +1044,19 @@ def test_cleanup_convosets_and_workspaces():
             convoset_delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,convoset_id=c["id"])
             print(convoset_delete_response)
             print(f'Deleted convoset: {c["id"]}')
+            
+def test_get_conversation_set_list_simple():
+    hf_api = humanfirst.apis.HFAPI()
+    convosets = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
+    assert len(convosets) > 0
+    df_simple = pandas.json_normalize(convosets)
+    assert isinstance(df_simple,pandas.DataFrame)
+
+# This test is for a legacy piece of functionality and very slow so commenting for speed.
+# TODO: decommission this function
+# def test_get_conversation_set_list_deep_report():
+#     hf_api = humanfirst.apis.HFAPI()
+#     df_full_report = pandas.json_normalize(hf_api.get_conversation_set_deep_report(namespace=TEST_NAMESPACE))
+#     print(df_full_report)
+#     print(df_full_report.loc[0,:])
+#     print(df_full_report.columns)
