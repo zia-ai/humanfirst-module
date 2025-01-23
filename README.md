@@ -129,7 +129,7 @@ pytest -s --cov ./humanfirst/ --cov-report term
 
 `pip install dist/humanfirst-<version number>.tar.gz --no-cache`
 
-For more details on developer setup visit Developer [REAME.md](./humanfirst/README.md)
+For more details on developer setup visit Developer [REAME.md](https://github.com/zia-ai/humanfirst-module/blob/master/humanfirst/README.md)
 
 ---
 ## 🔧 Configuration Files
