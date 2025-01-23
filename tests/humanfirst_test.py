@@ -12,6 +12,7 @@ import json
 from configparser import ConfigParser
 from datetime import datetime
 import uuid
+import math
 from dateutil import parser
 
 
@@ -927,7 +928,7 @@ def test_batch_predict():
     print(train_nlu_trigger)
 
     # Use describetrigger to know the status of NLU training
-    total_wait_time = _loop_trigger_check_until_done(hf_api=hf_api,max_loops=100,namespace=TEST_NAMESPACE,trigger_id=train_nlu_trigger["triggerId"])
+    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE, trigger_id=train_nlu_trigger["triggerId"])
     
     # Also then poll check for being trained (should be when trigger completes above)
     sleep_counter = 0 # doin linear rather than expo backoff in this test
@@ -1026,10 +1027,7 @@ def test_no_trigger():
                                                 convoset_id=conversation_obj["convoset_id"])
     print(link_response)
     assert "triggerId" in link_response.keys()
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=link_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=link_response["triggerId"])
     
     
     # test upload a file to the conversation set with no trigger
@@ -1053,10 +1051,7 @@ def test_no_trigger():
     assert "triggerId" in upload_response.keys()
 
     # Check that trigger
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=upload_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=upload_response["triggerId"])
     assert wait_time_till_done > 0
 
     # delete a file the same way starting with the most recent
@@ -1076,10 +1071,7 @@ def test_no_trigger():
     print(delete_response)
 
     # Check that trigger
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=delete_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=delete_response["triggerId"])
     assert wait_time_till_done > 0
 
     # delete the workspace
@@ -1089,74 +1081,3 @@ def test_no_trigger():
     delete_convo_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                                         convoset_id=conversation_obj["convoset_id"])
     print(delete_convo_response)
-
-
-def _loop_trigger_check_until_done(hf_api: humanfirst.apis.HFAPI,
-                                   max_loops: int,
-                                   namespace: str,
-                                   trigger_id: str,
-                                   increment: int = 0,
-                                   log_note: str = "",
-                                   timeout: int = 120) -> int:
-    """Loops round and waits for TRIGGER_STATUS_COMPLETE
-    The returns the total time
-    Return 0 if error """
-    loops = 0
-    wait = 1
-    total_wait = 0
-    done = False
-    while done == False:
-        trigger_response = hf_api.describe_trigger(namespace=namespace,trigger_id=trigger_id,timeout=timeout)
-        summary = {
-            "triggerId": trigger_response["triggerState"]["trigger"]["triggerId"],
-            "message": trigger_response["triggerState"]["trigger"]["message"],
-            "status": trigger_response["triggerState"]["status"]
-        }
-        if "progress" in trigger_response.keys():
-            summary["total"] = trigger_response["triggerState"]["progress"]["total"],
-            summary["completed"] = trigger_response["triggerState"]["progress"]["completed"],
-            summary["percentageComplete"] = trigger_response["triggerState"]["progress"]["percentageComplete"]
-
-        total_wait = total_wait + wait
-        loops = loops + 1
-        wait = wait + increment
-        if summary["status"] == "TRIGGER_STATUS_COMPLETED":
-            done = True
-            break
-        if loops > max_loops:
-            break
-        time.sleep(wait)
-    if done:
-        return total_wait
-    else:
-        return 0
-
-def test_cleanup_convosets_and_workspaces():
-    """testing delete test convosets if exist"""
-
-    hf_api = humanfirst.apis.HFAPI()
-
-    # get all workspaces/playbooks - TODO: seems very slow when number of playbooks gets very large for instance on default namepsace
-    print('Getting playbook list')
-    list_playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE,timeout=120)
-    print(f'Number of playbooks returned: {len(list_playbooks)}')
-
-    # find any that match and delete them
-    for p in list_playbooks:
-        if "playbookName" in p.keys():
-            if p["playbookName"] == "test link-unlink dataset":
-                playbook_delete_respone = hf_api.delete_playbook(namespace=TEST_NAMESPACE,playbook_id=p['etcdId'])
-                print(playbook_delete_respone)
-                print(f'Hard deleted playbook: {p["etcdId"]}')
-
-    # get all convosets
-    print(f'Getting all convosets - this may be slow if there are many convosets')
-    convoset_list = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE,timeout=120)
-    print(f'Received convosets: {len(convoset_list)}')
-
-    # Loop through deleting any that exist - checking to unlink first 
-    for c in convoset_list:
-        if c["name"] == TEST_CONVOSET:
-            convoset_delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,convoset_id=c["id"])
-            print(convoset_delete_response)
-            print(f'Deleted convoset: {c["id"]}')

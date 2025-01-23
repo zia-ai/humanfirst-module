@@ -16,6 +16,7 @@ from configparser import ConfigParser
 import logging
 import logging.config
 import time # pylint: disable=unused-import
+import math
 
 # third party imports
 import requests
@@ -46,6 +47,14 @@ BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+
+# trigger states
+TRIGGER_STATUS_UNKNOWN = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_UNKNOWN")
+TRIGGER_STATUS_PENDING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_PENDING")
+TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
+TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
+TRIGGER_STATUS_FAILED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_FAILED")
+TRIGGER_STATUS_CANCELLED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_CANCELLED")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -1981,3 +1990,88 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")
+    
+    def loop_trigger_check(self,
+                            namespace: str,
+                            trigger_id: str,
+                            timeout: int = 120,
+                            wait_seconds_between_loops: int = 1,
+                            exponential_factor: int = 1,
+                            max_loops: int = 240,
+                            ) -> int:
+        """Loops round checking a trigger ID
+        
+        Will keep checking until timeout time has elapsed whilst receiving one of
+        TRIGGER_STATUS_PENDING (waiting to run)
+        TRIGGER_STATUS_RUNNING (running)
+        
+        If this status changes to 
+        TRIGGER_STATUS_FAILED or
+        TRIGGER_STATUS_CANCELLED or
+        TRIGGER_STATUS_UNKNOWN
+        it will return -1 representing an error
+        
+        if it receives TRIGGER_STATUS_COMPLETED it will return the total time in seconds min 1 as an integer 
+        that it took to reach this state (active time and wait time included - so may be different to number of loops)
+        if it reaches it's max number of loops value before receiving an error or success state it will return 0
+        
+        Between each loop it waits the amount of time last waited times the exponential_factor for an exponential backoff option.
+        By default this is 1 so it will wait the same amount of time each loop, set it to 2 for instance to wait twice as long each loop.
+        
+        Default wait is 1 second, expontential off, max default loops is 240 with an api timeout of 120s - so it will wait at least 4 minutes
+        Plus any API call time.
+        
+        """
+        start = time.perf_counter()
+        loops = 0
+        done = False
+        wait = wait_seconds_between_loops
+        while done == False:
+            # wait if not the first loop
+            if loops > 0:
+                time.sleep(wait)
+            
+            # Call the api
+            trigger_response = self.describe_trigger(namespace=namespace,trigger_id=trigger_id,timeout=timeout)
+            
+            # produce a summary 
+            summary = {
+                "triggerId": trigger_response["triggerState"]["trigger"]["triggerId"],
+                "message": trigger_response["triggerState"]["trigger"]["message"],
+                "status": trigger_response["triggerState"]["status"]
+            }
+            
+            # enhance that with more information.
+            if "progress" in trigger_response.keys():
+                summary["total"] = trigger_response["triggerState"]["progress"]["total"],
+                summary["completed"] = trigger_response["triggerState"]["progress"]["completed"],
+                summary["percentageComplete"] = trigger_response["triggerState"]["progress"]["percentageComplete"]
+
+            # increment counter
+            loops = loops + 1
+            
+            # increase the wait if necessary
+            wait = wait * exponential_factor
+
+            # Calculate total time to date and add it to summary
+            summary["duration"] = time.perf_counter() - start
+
+
+            # success        
+            if summary["status"] == TRIGGER_STATUS_COMPLETED:
+                done = True
+                break
+            
+            # failure or cancelled
+            if summary["status"] in [TRIGGER_STATUS_UNKNOWN,TRIGGER_STATUS_CANCELLED,TRIGGER_STATUS_FAILED]:
+                return -1
+            
+            # timed out 
+            if loops > max_loops:
+                break
+                    
+        if done:
+            return int(math.ceil(summary["duration"]))
+        else:
+            # timed out return 0
+            return 0
