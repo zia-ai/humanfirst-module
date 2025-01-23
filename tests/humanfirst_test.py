@@ -728,6 +728,32 @@ def test_conversation_set_functionalities():
                                                         playbook_id=playbook_id,
                                                         convoset_id=conversation_obj["convoset_id"])
                 assert link_res == {}
+                
+                # Check that we can download the full conversations
+                # build the metadata_predicate
+                metadata_predicate = []
+                metadata_predicate.append(
+                    {
+                        "key": "abcd_id", # lookup by abcd
+                        "operator": "EQUALS",
+                        "value": "108", # get conversation 108
+                        "optional": False
+                    }
+                )
+                
+                # download both sides of the conversation - using 3 to skip source
+                test_convos = hf_api.export_query_conversation_inputs(namespace=TEST_NAMESPACE,
+                                                                      playbook_id=playbook_id,
+                                                                      metadata_predicate=metadata_predicate,
+                                                                      source_kind=1,# unlabelled
+                                                                      source=-1, # skip source
+                )
+                assert("examples" in test_convos.keys())
+                assert len(test_convos["examples"]) == 14 # 14 utterances in test set
+                # check the ordering is maintained
+                assert test_convos["examples"][0]["metadata"]["conversation_turn"] == "000"
+                assert test_convos["examples"][13]["metadata"]["conversation_turn"] == "013"
+    
 
                 # upon trying to delete the conversation set when it is linked to workspaces, it throws error
                 delete_res_exception = ""

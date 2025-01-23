@@ -1445,7 +1445,7 @@ class HFAPI:
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
             source_kind: int = 2, # DEFAULT TO GENERATED
-            source: int = 1, # DEFAULT to "client" - i.e get the client utterances
+            source: int = 1, # DEFAULT to "client" - i.e get the client utterances 
             timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
@@ -1460,6 +1460,7 @@ class HFAPI:
         SOURCE_KIND_GENERATED = 2;
         
         source
+        -1 removes this predicate in this SDK
         INVALID = 0;
         CLIENT = 1;
         EXPERT = 2;
@@ -1560,11 +1561,6 @@ class HFAPI:
             "playbook_id": playbook_id,
             "input_predicates": [
                 {
-                    "source": {
-                        "source": source 
-                    }
-                },
-                {
                     "metadata":{
                         "conditions": metadata_filters
                     }
@@ -1595,6 +1591,15 @@ class HFAPI:
             },
             "order_direction": order_direction
         }
+
+        if source != -1:
+            payload["input_predicates"].append(
+                {
+                    "source": {
+                        "source": source 
+                    }
+                }
+            )
 
         headers = self._get_headers()
 
