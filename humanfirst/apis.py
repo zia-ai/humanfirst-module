@@ -2054,17 +2054,21 @@ class HFAPI:
             wait = wait * exponential_factor
 
             # Calculate total time to date and add it to summary
-            summary["duration"] = time.perf_counter() - start
-
-
+            summary["duration"] = round(time.perf_counter() - start,2)
+            
             # success        
             if summary["status"] == TRIGGER_STATUS_COMPLETED:
+                logger.info('%s', summary)
                 done = True
                 break
             
             # failure or cancelled
             if summary["status"] in [TRIGGER_STATUS_UNKNOWN,TRIGGER_STATUS_CANCELLED,TRIGGER_STATUS_FAILED]:
+                logger.error('%s', summary)
                 return -1
+
+            # Log at info if waiting
+            logger.info('%s', summary)
             
             # timed out 
             if loops > max_loops:
