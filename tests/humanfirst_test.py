@@ -833,7 +833,7 @@ def test_conversation_set_functionalities():
                         "optional": False
                     }
                 )
-                
+
                 # download both sides of the conversation - using 3 to skip source
                 test_convos = hf_api.export_query_conversation_inputs(namespace=TEST_NAMESPACE,
                                                                       playbook_id=playbook_id,
@@ -846,7 +846,7 @@ def test_conversation_set_functionalities():
                 # check the ordering is maintained
                 assert test_convos["examples"][0]["metadata"]["conversation_turn"] == "000"
                 assert test_convos["examples"][13]["metadata"]["conversation_turn"] == "013"
-    
+
 
                 # upon trying to delete the conversation set when it is linked to workspaces, it throws error
                 delete_res_exception = ""
