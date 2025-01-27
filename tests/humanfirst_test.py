@@ -12,6 +12,7 @@ import json
 from configparser import ConfigParser
 from datetime import datetime
 import uuid
+import math
 from dateutil import parser
 
 
@@ -230,73 +231,6 @@ def test_intent_hierarchy_numbers():
     assert intent.parent_intent_id == 'intent-1'
     assert len(labelled.intents) == 3
 
-
-# Tests not fully done
-# def test_get_playbook_info():
-#     """Test get playbook info"""
-
-#     hf_api = humanfirst.apis.HFAPI()
-
-#     playbook_name = "Test tags"
-
-#     playbook_id = _create_playbook(hf_api,
-#                                    namespace=TEST_NAMESPACE,
-#                                    playbook_name=playbook_name)
-
-#     try:
-#         pb_info = hf_api.get_playbook_info(namespace=TEST_NAMESPACE,
-#                                  playbook=playbook_id)
-
-#         assert pb_info["namespace"] == TEST_NAMESPACE
-#         assert pb_info["id"] == playbook_id
-#         assert pb_info["name"] == playbook_name
-
-#         # TODO: test for pb_info schema
-
-#         _del_playbook(hf_api=hf_api,
-#                     namespace=TEST_NAMESPACE,
-#                     playbook_id=playbook_id)
-
-#     except RuntimeError as e:
-#         print(e)
-#         _del_playbook(hf_api=hf_api,
-#                     namespace=TEST_NAMESPACE,
-#                     playbook_id=playbook_id)
-
-
-# def test_get_intents():
-#     """Test get intent"""
-
-#     hf_api = humanfirst.apis.HFAPI()
-
-#     playbook_name = "Test get intents"
-
-#     playbook_id = _create_playbook(hf_api,
-#                                    namespace=TEST_NAMESPACE,
-#                                    playbook_name=playbook_name)
-
-#     try:
-#         path_to_file = os.path.join(here,'..','examples','json_model_example_output.json')
-
-#         with open(path_to_file, mode="r", encoding="utf8") as file_obj:
-#             workspace_dict = json.load(file_obj)
-
-#         _ = hf_api.import_intents(namespace=TEST_NAMESPACE, playbook=playbook_id, workspace_as_dict=workspace_dict)
-
-#         intents_list = hf_api.get_intents(namespace=TEST_NAMESPACE,
-#                                           playbook=playbook_id)
-
-#         _del_playbook(hf_api=hf_api,
-#                     namespace=TEST_NAMESPACE,
-#                     playbook_id=playbook_id)
-
-#     except RuntimeError as e:
-#         print(e)
-#         _del_playbook(hf_api=hf_api,
-#                     namespace=TEST_NAMESPACE,
-#                     playbook_id=playbook_id)
-
-
 def test_tags():
     """Test create, delete and list tags"""
 
@@ -366,6 +300,7 @@ def test_get_fully_qualified_intent_name():
     #TODO: Modify this to latest test standards of calling apis with try/except to avoid creating multiple copies
 
     hf_api = humanfirst.apis.HFAPI()
+
 
     create_pb_res = hf_api.create_playbook(namespace=TEST_NAMESPACE,
                                            playbook_name="fully_qualified_intent_name function test")
@@ -728,6 +663,32 @@ def test_conversation_set_functionalities():
                                                         playbook_id=playbook_id,
                                                         convoset_id=conversation_obj["convoset_id"])
                 assert link_res == {}
+                
+                # Check that we can download the full conversations
+                # build the metadata_predicate
+                metadata_predicate = []
+                metadata_predicate.append(
+                    {
+                        "key": "abcd_id", # lookup by abcd
+                        "operator": "EQUALS",
+                        "value": "108", # get conversation 108
+                        "optional": False
+                    }
+                )
+                
+                # download both sides of the conversation - using 3 to skip source
+                test_convos = hf_api.export_query_conversation_inputs(namespace=TEST_NAMESPACE,
+                                                                      playbook_id=playbook_id,
+                                                                      metadata_predicate=metadata_predicate,
+                                                                      source_kind=1,# unlabelled
+                                                                      source=-1, # skip source
+                )
+                assert("examples" in test_convos.keys())
+                assert len(test_convos["examples"]) == 14 # 14 utterances in test set
+                # check the ordering is maintained
+                assert test_convos["examples"][0]["metadata"]["conversation_turn"] == "000"
+                assert test_convos["examples"][13]["metadata"]["conversation_turn"] == "013"
+    
 
                 # upon trying to delete the conversation set when it is linked to workspaces, it throws error
                 delete_res_exception = ""
@@ -901,7 +862,7 @@ def test_batch_predict():
     print(train_nlu_trigger)
 
     # Use describetrigger to know the status of NLU training
-    total_wait_time = _loop_trigger_check_until_done(hf_api=hf_api,max_loops=100,namespace=TEST_NAMESPACE,trigger_id=train_nlu_trigger["triggerId"])
+    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE, trigger_id=train_nlu_trigger["triggerId"])
     
     # Also then poll check for being trained (should be when trigger completes above)
     sleep_counter = 0 # doin linear rather than expo backoff in this test
@@ -1000,10 +961,7 @@ def test_no_trigger():
                                                 convoset_id=conversation_obj["convoset_id"])
     print(link_response)
     assert "triggerId" in link_response.keys()
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=link_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=link_response["triggerId"])
     
     
     # test upload a file to the conversation set with no trigger
@@ -1027,10 +985,7 @@ def test_no_trigger():
     assert "triggerId" in upload_response.keys()
 
     # Check that trigger
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=upload_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=upload_response["triggerId"])
     assert wait_time_till_done > 0
 
     # delete a file the same way starting with the most recent
@@ -1039,8 +994,7 @@ def test_no_trigger():
                                                       file_name="abcd_109_test",
                                                       no_trigger=True)
     print(delete_response)
-    # TODO: triggerId is in here, and is non-blank?  Is this a bug?
-    # Yes AP identified - fix developed needs merge
+    assert not "triggerId" in delete_response.keys()
 
     # Now delete and check the trigger
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
@@ -1050,10 +1004,7 @@ def test_no_trigger():
     print(delete_response)
 
     # Check that trigger
-    wait_time_till_done = _loop_trigger_check_until_done(hf_api=hf_api,
-                                         max_loops=100, 
-                                         namespace=TEST_NAMESPACE,
-                                         trigger_id=delete_response["triggerId"])
+    wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=delete_response["triggerId"])
     assert wait_time_till_done > 0
 
     # delete the workspace
@@ -1063,48 +1014,7 @@ def test_no_trigger():
     delete_convo_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                                         convoset_id=conversation_obj["convoset_id"])
     print(delete_convo_response)
-
-
-def _loop_trigger_check_until_done(hf_api: humanfirst.apis.HFAPI,
-                                   max_loops: int,
-                                   namespace: str,
-                                   trigger_id: str,
-                                   increment: int = 0,
-                                   log_note: str = "",
-                                   timeout: int = 120) -> int:
-    """Loops round and waits for TRIGGER_STATUS_COMPLETE
-    The returns the total time
-    Return 0 if error """
-    loops = 0
-    wait = 1
-    total_wait = 0
-    done = False
-    while done == False:
-        trigger_response = hf_api.describe_trigger(namespace=namespace,trigger_id=trigger_id,timeout=timeout)
-        summary = {
-            "triggerId": trigger_response["triggerState"]["trigger"]["triggerId"],
-            "message": trigger_response["triggerState"]["trigger"]["message"],
-            "status": trigger_response["triggerState"]["status"]
-        }
-        if "progress" in trigger_response.keys():
-            summary["total"] = trigger_response["triggerState"]["progress"]["total"],
-            summary["completed"] = trigger_response["triggerState"]["progress"]["completed"],
-            summary["percentageComplete"] = trigger_response["triggerState"]["progress"]["percentageComplete"]
-
-        total_wait = total_wait + wait
-        loops = loops + 1
-        wait = wait + increment
-        if summary["status"] == "TRIGGER_STATUS_COMPLETED":
-            done = True
-            break
-        if loops > max_loops:
-            break
-        time.sleep(wait)
-    if done:
-        return total_wait
-    else:
-        return 0
-
+    
 def test_cleanup_convosets_and_workspaces():
     """testing delete test convosets if exist"""
 
@@ -1134,3 +1044,19 @@ def test_cleanup_convosets_and_workspaces():
             convoset_delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,convoset_id=c["id"])
             print(convoset_delete_response)
             print(f'Deleted convoset: {c["id"]}')
+            
+def test_get_conversation_set_list_simple():
+    hf_api = humanfirst.apis.HFAPI()
+    convosets = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
+    assert len(convosets) > 0
+    df_simple = pandas.json_normalize(convosets)
+    assert isinstance(df_simple,pandas.DataFrame)
+
+# This test is for a legacy piece of functionality and very slow so commenting for speed.
+# TODO: decommission this function
+# def test_get_conversation_set_list_deep_report():
+#     hf_api = humanfirst.apis.HFAPI()
+#     df_full_report = pandas.json_normalize(hf_api.get_conversation_set_deep_report(namespace=TEST_NAMESPACE))
+#     print(df_full_report)
+#     print(df_full_report.loc[0,:])
+#     print(df_full_report.columns)
