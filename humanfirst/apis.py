@@ -987,8 +987,7 @@ class HFAPI:
     # *****************************************************************************************************************
 
     def get_conversation_set_list(self, namespace: str, timeout: float = None) -> tuple:
-        """Get all the conversation sets and their info for a namespaces"""
-
+        """Get all the conversation sets for a namespace"""
         payload = {}
 
         headers = self._get_headers()
@@ -999,18 +998,36 @@ class HFAPI:
 
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=effective_timeout)
-        conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
+        
+        return self._validate_response(response=response,url=url,field='conversationSets')
 
-        # make it a list looking up each individual one
+    def get_conversation_set_deep_report(self, namespace: str, timeout: float = None) -> tuple:
+        """Get all the conversation sets,
+        prepare a deep report which includes two pieces of additional summary boolean
+        information
+        is_data_folder_empty
+        no_data_file_uploaded_since_creation
+        To do this it will query individually each conversation set, which can take a while
+        in cases where there are a lot of conversationsets
+        
+        These are primarily to aid in finding conversation sets which can be deleted.
+        
+        This has now been replaced with the in tool (i) additional information on
+        Data managemnet subscription.
+        The intention is to depreciate this functionality
+        
+        TODO: check after release no-one is still using and delete
+        """
+
+        # Make the simple call.        
+        conversation_sets = self.get_conversation_set_list(namespace=namespace)
+
+        # Enrich with the additional information by calling to get each's information 
         conversation_set_list = []
         for conversation_set in conversation_sets:
-            conversation_set_id = conversation_set['id']
+            conversation_set = self.get_conversation_set(namespace=namespace, conversation_set_id=conversation_set['id'])
 
-            url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
-            response = requests.request(
-                "GET", url, headers=headers, data=payload, timeout=effective_timeout)
-            conversation_set = self._validate_response(response=response,url=url)
-
+            # carry over the legacy logic
             if "state" in conversation_set.keys():
                 conversation_set["no_data_file_is_uploaded_since_creation"] = False
                 if (("jobsStatus" in conversation_set["state"].keys()) and
