@@ -17,6 +17,7 @@ import logging
 import logging.config
 import warnings
 import time # pylint: disable=unused-import
+import math
 
 # third party imports
 import requests
@@ -50,6 +51,14 @@ BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
 BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
+
+# trigger states
+TRIGGER_STATUS_UNKNOWN = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_UNKNOWN")
+TRIGGER_STATUS_PENDING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_PENDING")
+TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
+TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
+TRIGGER_STATUS_FAILED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_FAILED")
+TRIGGER_STATUS_CANCELLED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_CANCELLED")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -1012,18 +1021,38 @@ class HFAPI:
 
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=effective_timeout)
-        conversation_sets = self._validate_response(response=response,url=url,field='conversationSets')
+        
+        return self._validate_response(response=response,url=url,field='conversationSets')
 
-        # make it a list looking up each individual one
+    def get_conversation_set_deep_report(self, namespace: str, timeout: float = None) -> tuple:
+        """Get all the conversation sets,
+        prepare a deep report which includes two pieces of additional summary boolean
+        information
+        is_data_folder_empty
+        no_data_file_uploaded_since_creation
+        To do this it will query individually each conversation set, which can take a while
+        in cases where there are a lot of conversationsets
+        
+        These are primarily to aid in finding conversation sets which can be deleted.
+        
+        This has now been replaced with the in tool (i) additional information on
+        Data managemnet subscription.
+        The intention is to depreciate this functionality
+        
+        TODO: check after release no-one is still using and delete
+        """
+
+        # Make the simple call
+        conversation_sets = self.get_conversation_set_list(namespace=namespace, timeout=timeout)
+
+        # Enrich with the additional information by calling to get each's information 
         conversation_set_list = []
         for conversation_set in conversation_sets:
-            conversation_set_id = conversation_set['id']
+            conversation_set = self.get_conversation_set(namespace=namespace,
+                                                         conversation_set_id=conversation_set['id'],
+                                                         timeout=timeout)
 
-            url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
-            response = requests.request(
-                "GET", url, headers=headers, data=payload, timeout=effective_timeout)
-            conversation_set = self._validate_response(response=response,url=url)
-
+            # carry over the legacy logic
             if "state" in conversation_set.keys():
                 conversation_set["no_data_file_is_uploaded_since_creation"] = False
                 if (("jobsStatus" in conversation_set["state"].keys()) and
@@ -1458,6 +1487,7 @@ class HFAPI:
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
             source_kind: int = 2, # DEFAULT TO GENERATED
+            source: int = 1, # DEFAULT to "client" - i.e get the client utterances 
             timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
@@ -1470,6 +1500,12 @@ class HFAPI:
         SOURCE_KIND_UNSPECIFIED = 0;
         SOURCE_KIND_UNLABELED = 1;
         SOURCE_KIND_GENERATED = 2;
+        
+        source
+        -1 removes this predicate in this SDK
+        INVALID = 0;
+        CLIENT = 1;
+        EXPERT = 2;
 
         metadata_predicate
         [
@@ -1567,11 +1603,6 @@ class HFAPI:
             "playbook_id": playbook_id,
             "input_predicates": [
                 {
-                    "source": {
-                        "source": 1 # TODO: UNKNOWN CURRENTLY
-                    }
-                },
-                {
                     "metadata":{
                         "conditions": metadata_filters
                     }
@@ -1602,6 +1633,15 @@ class HFAPI:
             },
             "order_direction": order_direction
         }
+
+        if source != -1:
+            payload["input_predicates"].append(
+                {
+                    "source": {
+                        "source": source 
+                    }
+                }
+            )
 
         headers = self._get_headers()
 
@@ -1953,3 +1993,92 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")
+
+    def loop_trigger_check(self,
+                            namespace: str,
+                            trigger_id: str,
+                            timeout: int = 120,
+                            wait_seconds_between_loops: int = 1,
+                            exponential_factor: int = 1,
+                            max_loops: int = 240,
+                            ) -> int:
+        """Loops round checking a trigger ID
+        
+        Will keep checking until timeout time has elapsed whilst receiving one of
+        TRIGGER_STATUS_PENDING (waiting to run)
+        TRIGGER_STATUS_RUNNING (running)
+        
+        If this status changes to 
+        TRIGGER_STATUS_FAILED or
+        TRIGGER_STATUS_CANCELLED or
+        TRIGGER_STATUS_UNKNOWN
+        it will return -1 representing an error
+        
+        if it receives TRIGGER_STATUS_COMPLETED it will return the total time in seconds min 1 as an integer 
+        that it took to reach this state (active time and wait time included - so may be different to number of loops)
+        if it reaches it's max number of loops value before receiving an error or success state it will return 0
+        
+        Between each loop it waits the amount of time last waited times the exponential_factor for an exponential backoff option.
+        By default this is 1 so it will wait the same amount of time each loop, set it to 2 for instance to wait twice as long each loop.
+
+        Default wait is 1 second, expontential off, max default loops is 240 with an api timeout of 120s - so it will wait at least 4 minutes
+        Plus any API call time.
+        
+        """
+        start = time.perf_counter()
+        loops = 0
+        done = False
+        wait = wait_seconds_between_loops
+        while done == False:
+            # wait if not the first loop
+            if loops > 0:
+                time.sleep(wait)
+
+            # Call the api
+            trigger_response = self.describe_trigger(namespace=namespace,trigger_id=trigger_id,timeout=timeout)
+
+            # produce a summary
+            summary = {
+                "triggerId": trigger_response["triggerState"]["trigger"]["triggerId"],
+                "message": trigger_response["triggerState"]["trigger"]["message"],
+                "status": trigger_response["triggerState"]["status"]
+            }
+
+            # enhance that with more information.
+            if "progress" in trigger_response.keys():
+                summary["total"] = trigger_response["triggerState"]["progress"]["total"],
+                summary["completed"] = trigger_response["triggerState"]["progress"]["completed"],
+                summary["percentageComplete"] = trigger_response["triggerState"]["progress"]["percentageComplete"]
+
+            # increment counter
+            loops = loops + 1
+
+            # increase the wait if necessary
+            wait = wait * exponential_factor
+
+            # Calculate total time to date and add it to summary
+            summary["duration"] = round(time.perf_counter() - start,2)
+
+            # success
+            if summary["status"] == TRIGGER_STATUS_COMPLETED:
+                logger.info('%s', summary)
+                done = True
+                break
+
+            # failure or cancelled
+            if summary["status"] in [TRIGGER_STATUS_UNKNOWN,TRIGGER_STATUS_CANCELLED,TRIGGER_STATUS_FAILED]:
+                logger.error('%s', summary)
+                return -1
+
+            # Log at info if waiting
+            logger.info('%s', summary)
+
+            # timed out
+            if loops > max_loops:
+                break
+
+        if done:
+            return int(math.ceil(summary["duration"]))
+        else:
+            # timed out return 0
+            return 0

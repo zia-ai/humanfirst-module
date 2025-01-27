@@ -351,8 +351,8 @@ class FirebaseAuthorization:
                     self.bearer_token_dict["client_time"]  = int(time.time())
 
                     # Token is valid
-                    logger.info("Token is valid")
-                    logger.info("Decoded Token: %s", decoded_token)
+                    logger.debug("Token is valid")
+                    logger.debug("Decoded Token: %s", decoded_token)
                     # The timestamp is in unix format. Uncomment below to convert unix to utc format
                     # decoded_token['iat'] = datetime.fromtimestamp(
                     #     decoded_token['iat'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
@@ -366,10 +366,10 @@ class FirebaseAuthorization:
                     # Calculate the difference between current time and expiration time in Unix timestamp
                     time_diff = self.bearer_token_dict["client_time"] - self.bearer_token_dict["decoded_token"]["iat"]
 
-                    logger.info("Current Client time: %s UTC", self.bearer_token_dict["client_time"])
-                    logger.info('Token issued at time: %s UTC', self.bearer_token_dict["decoded_token"]["iat"])
-                    logger.info('Token expiration time: %s UTC', self.bearer_token_dict["decoded_token"]["exp"])
-                    logger.info("Difference between current time and token issue time: %s seconds", time_diff)
+                    logger.debug("Current Client time: %s UTC", self.bearer_token_dict["client_time"])
+                    logger.debug('Token issued at time: %s UTC', self.bearer_token_dict["decoded_token"]["iat"])
+                    logger.debug('Token expiration time: %s UTC', self.bearer_token_dict["decoded_token"]["exp"])
+                    logger.debug("Difference between current time and token issue time: %s seconds", time_diff)
                     return
 
                 except ExpiredSignatureError:
@@ -381,7 +381,7 @@ class FirebaseAuthorization:
                     self.bearer_token_dict["token"] = refresh_response.get("id_token")
                     self.bearer_token_dict["refresh_token"] = refresh_response.get("refresh_token")
                     if not self.bearer_token_dict["token"]:
-                        logger.info("Failed to refresh the token. No new ID token received.")
+                        logger.error("Failed to refresh the token. No new ID token received.")
                         time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
                     refresh_attempts = refresh_attempts + 1
                     continue
