@@ -203,7 +203,7 @@ class HFAPI:
         
         1. Using HumanFirst API Key
             This is the recommended authentication
-            Steps to get API key - https://api-keys.humanfirst-docs.pages.dev/docs/api/
+            Steps to get API key - TODO: get prod link https://api-keys.humanfirst-docs.pages.dev/docs/api/
             There are 3 ways api key is passed onto the object
             1.1. HF_API_KEY can be set as environment variables
                 1.1.1. Using CLI
