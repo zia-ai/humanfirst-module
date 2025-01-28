@@ -13,7 +13,6 @@ import json
 from configparser import ConfigParser
 from datetime import datetime
 import uuid
-import math
 from dateutil import parser
 
 
@@ -53,14 +52,6 @@ if TEST_NAMESPACE is None:
 
 DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
-TRIGGER_STATUS_UNKNOWN = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_UNKNOWN")
-TRIGGER_STATUS_PENDING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_PENDING")
-TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RUNNING")
-TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
-TRIGGER_STATUS_FAILED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_FAILED")
-TRIGGER_STATUS_CANCELLED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_CANCELLED")
-TRIGGER_WAIT_TIME = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME"))
-TRIGGER_WAIT_TIME_COUNT = int(constants.get("humanfirst.CONSTANTS","TRIGGER_WAIT_TIME_COUNT"))
 
 # Which environment the test is running on is signficant.
 print(f'Running test on HF_ENVIRONMENT={os.environ.get("HF_ENVIRONMENT")}')
@@ -175,29 +166,16 @@ def test_list_playbooks():
                                                             convoset_id=conversation_obj["convoset_id"])
 
                     # check if the link trigger is completed
-                    link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
                                                                 trigger_id=link_res["triggerId"])
-                    i=0
-                    while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
-
-                        if (link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
-                            or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
-                            or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
-                            pass
-                        elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
-                            raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_FAILED}") # pylint: disable=line-too-long
-                        elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
-                            raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
-                        else:
-                            raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting unknown trigger status - {link_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
-
-                        if i >= TRIGGER_WAIT_TIME_COUNT:
-                            raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
-                        time.sleep(TRIGGER_WAIT_TIME)
-                        link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                    trigger_id=link_res["triggerId"])
-                        i = i + 1
-
+                    if total_wait_time == -1:
+                        raise RuntimeError('Link pipeline failed or was cancelled')
+                    elif total_wait_time == 0:
+                        raise RuntimeError('Link pipeline timed out')
+                    else:
+                        print(f'Link convoset completed in: {total_wait_time}')
+                        
+  
                     # test list playbooks filtering the playbooks with conversation set attached
                     list_playbooks_res2 = hf_api.list_playbooks(namespace=TEST_NAMESPACE,
                                                             conversation_set_id=conversation_obj["convoset_id"])
@@ -216,28 +194,14 @@ def test_list_playbooks():
                                                                 convoset_id=conversation_obj["convoset_id"])
 
                     # check if unlink trigger is completed
-                    unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                    trigger_id=unlink_res["triggerId"])
-                    i=0
-                    while unlink_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
-
-                        if (unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
-                            or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
-                            or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
-                            pass
-                        elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
-                            raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_FAILED}") # pylint: disable=line-too-long
-                        elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
-                            raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
-                        else:
-                            raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting unknown trigger status - {unlink_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
-
-                        if i >= TRIGGER_WAIT_TIME_COUNT:
-                            raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
-                        time.sleep(TRIGGER_WAIT_TIME)
-                        unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                        trigger_id=unlink_res["triggerId"])
-                        i = i + 1
+                    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
+                                                                trigger_id=unlink_res["triggerId"])
+                    if total_wait_time == -1:
+                        raise RuntimeError('Unlink pipeline failed or was cancelled')
+                    elif total_wait_time == 0:
+                        raise RuntimeError('Unlink ipeline timed out')
+                    else:
+                        print(f'Unlink convoset completed in: {total_wait_time}')
 
                     # delete conversation set
                     delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
@@ -788,32 +752,14 @@ def test_conversation_set_functionalities():
                 assert "trig-" in link_res["triggerId"]
 
                 # check if the link trigger is completed
-                link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
+                total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
                                                             trigger_id=link_res["triggerId"])
-                i=0
-                print(link_trigger_report["triggerState"]["status"])
-                while link_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
-                    print("Inside link trigger report")
-
-                    if (link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
-                        or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
-                        or link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
-                        pass
-                    elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
-                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
-                    elif link_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
-                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
-                    else:
-                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} getting unknown trigger status - {link_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
-
-                    if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {link_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
-                    time.sleep(TRIGGER_WAIT_TIME)
-                    link_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                trigger_id=link_res["triggerId"])
-                    i = i + 1
-                    print(link_trigger_report["triggerState"]["status"])
-                print("Outside link trigger report")
+                if total_wait_time == -1:
+                    raise RuntimeError('Link pipeline failed or was cancelled')
+                elif total_wait_time == 0:
+                    raise RuntimeError('Link pipeline timed out')
+                else:
+                    print(f'Link convoset completed in: {total_wait_time}')
 
                 # return empty json when there is no changes made in the tool
                 # trying to link the same dataset to the same workspace as above
@@ -866,33 +812,15 @@ def test_conversation_set_functionalities():
                 assert isinstance(unlink_res["triggerId"],str)
                 assert "trig-" in unlink_res["triggerId"]
 
-                # check if unlink trigger is completed
-                unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                trigger_id=unlink_res["triggerId"])
-                i=0
-                print(unlink_trigger_report["triggerState"]["status"])
-                while unlink_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
-                    print("Inside unlink trigger report")
-
-                    if (unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
-                        or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
-                        or unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
-                        pass
-                    elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
-                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
-                    elif unlink_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
-                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
-                    else:
-                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} getting unknown trigger status - {unlink_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
-
-                    if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {unlink_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
-                    time.sleep(TRIGGER_WAIT_TIME)
-                    unlink_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                    trigger_id=unlink_res["triggerId"])
-                    i = i + 1
-                    print(unlink_trigger_report["triggerState"]["status"])
-                print("Outside unlink trigger report")
+                # check if the link trigger is completed
+                total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
+                                                            trigger_id=unlink_res["triggerId"])
+                if total_wait_time == -1:
+                    raise RuntimeError('Link pipeline failed or was cancelled')
+                elif total_wait_time == 0:
+                    raise RuntimeError('Link pipeline timed out')
+                else:
+                    print(f'Link convoset completed in: {total_wait_time}')
 
                 # return empty json when there is no changes made in the tool
                 # trying to unlink the same dataset from the same workspace as above
@@ -911,34 +839,16 @@ def test_conversation_set_functionalities():
                 assert isinstance(delete_res["triggerId"],str)
                 assert "trig-" in delete_res["triggerId"]
 
-                # check if unlink trigger is completed
-                delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                trigger_id=delete_res["triggerId"])
-                i=0
-                print(delete_trigger_report["triggerState"]["status"])
-                while delete_trigger_report["triggerState"]["status"] != TRIGGER_STATUS_COMPLETED:
-                    print("Inside del trigger report")
-
-                    if (delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_UNKNOWN
-                        or delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_PENDING
-                        or delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_RUNNING):
-                        pass
-                    elif delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_FAILED:
-                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting {TRIGGER_STATUS_FAILED}")
-                    elif delete_trigger_report["triggerState"]["status"] == TRIGGER_STATUS_CANCELLED:
-                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting {TRIGGER_STATUS_CANCELLED}") # pylint: disable=line-too-long
-                    else:
-                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} getting unknown trigger status - {delete_trigger_report['triggerState']['status']}") # pylint: disable=line-too-long
-
-                    if i >= TRIGGER_WAIT_TIME_COUNT:
-                        raise RuntimeError(f"Trigger Job ID - {delete_res['triggerId']} running too long - {TRIGGER_WAIT_TIME*TRIGGER_WAIT_TIME_COUNT} seconds") # pylint: disable=line-too-long
-                    time.sleep(TRIGGER_WAIT_TIME)
-                    delete_trigger_report = hf_api.describe_trigger(namespace=TEST_NAMESPACE,
-                                                                    trigger_id=delete_res["triggerId"])
-                    i = i + 1
-                    print(delete_trigger_report["triggerState"]["status"])
-                print("Outside del trigger report")
-
+                # check if delete trigger completes
+                total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
+                                                            trigger_id=delete_res["triggerId"])
+                if total_wait_time == -1:
+                    raise RuntimeError('Delete pipeline failed or was cancelled')
+                elif total_wait_time == 0:
+                    raise RuntimeError('Delete pipeline timed out')
+                else:
+                    print(f'Delete convoset completed in: {total_wait_time}')
+                
                 # Test deleting a file from a convoset with exception
                 output_exception = ""
                 try:

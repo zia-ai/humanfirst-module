@@ -271,9 +271,8 @@ class HFAPI:
             # and then checks the .env varaiables
             api_key = os.environ.get("HF_API_KEY")
             if api_key is None:
-                warnings.warn("Recommended authentication is using HumanFirst API key.")
-                warnings.warn("HF_API_KEY environment variable is not set.")
-                warnings.warn("Proeceeding with firebase authentication")
+                warnings.warn("Recommended authentication is using HumanFirst API key in env variable HF_API_KEY")
+                # TODO: link to docs for how to use
                 self.auth_type = FIREBASE
                 self.firebase_auth = FirebaseAuthorization(username=username,
                                                   password=password,
@@ -1288,24 +1287,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        # check no trigger
-        if no_trigger:
-            str_no_trigger = "true"
-        else:
-            str_no_trigger = "false"
-
         payload = {
             "namespace":namespace,
             "no_trigger": no_trigger, # TODO: debugging this should it be a string or a boolean?  json.dumps will change True to true, no quotes
             "filename": file_name,
             "conversation_source_id":conversation_set_src_id
         }
-        print(payload)
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
-
-        print(json.dumps(payload))
 
         response = requests.request(
             "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
