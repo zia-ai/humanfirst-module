@@ -55,7 +55,7 @@ jobs:
           command: BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && echo $BASE_URL_TEST
       - run:
           name: Run tests 
-          command: HF_ENVIRONMENT=test BASE_URL_TEST=$BASE_URL_TEST pytest --cov ./humanfirst/ --cov-report html --cov-report term
+          command: HF_ENVIRONMENT=test BASE_URL_TEST=$BASE_URL_TEST HF_LOG_LEVEL=DEBUG HF_LOG_CONSOLE_ENABLE=TRUE pytest -s --log-cli-level=DEBUG --cov ./humanfirst/ --cov-report html --cov-report term
 
 workflows:
   test-aio: 
