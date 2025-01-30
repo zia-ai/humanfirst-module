@@ -48,8 +48,14 @@ jobs:
       - python/install-packages:
           pkg-manager: pip
       - run:
-          name: Start AIO container and run tests
-          command: sudo timedatectl set-ntp true ; sudo systemctl restart systemd-timesyncd ; EMBEDDINGS_K8S_FORWARD=1 AIO_START=1 ./aio.sh test
+          name: Start AIO container
+          command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
+      - run:
+          name: Set Local IP of AIO container
+          command: BASE_URL_TEST=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio` && echo $BASE_URL_TEST
+      - run:
+          name: Run tests 
+          command: HF_ENVIRONMENT=test BASE_URL_TEST=$BASE_URL_TEST pytest --cov ./humanfirst/ --cov-report html --cov-report term
 
 workflows:
   test-aio: 

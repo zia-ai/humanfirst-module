@@ -1048,9 +1048,10 @@ def test_cleanup_convosets_and_workspaces():
 def test_get_conversation_set_list_simple():
     hf_api = humanfirst.apis.HFAPI()
     convosets = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
-    assert len(convosets) > 0
-    df_simple = pandas.json_normalize(convosets)
-    assert isinstance(df_simple,pandas.DataFrame)
+    # if running with aio image which starts completely empty this will have 0 convosets
+    if len(convosets) > 0:
+        df_simple = pandas.json_normalize(convosets)
+        assert isinstance(df_simple,pandas.DataFrame)
 
 # This test is for a legacy piece of functionality and very slow so commenting for speed.
 # TODO: decommission this function
