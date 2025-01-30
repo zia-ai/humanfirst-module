@@ -224,7 +224,7 @@ class HFAPI:
         # In this case the IP address must be set as a Env variable
         # BASE_URL_TEST
         elif self.studio_environment == "test":
-            self.base_url = os.environ.get("BASE_URL_TEST")
+            self.base_url = os.environ.get("BASE_URL_TEST","http://172.17.0.2:8888") # default to the CI environment most likely value
             logger.debug(f'self.base_url: {self.base_url}')
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
