@@ -52,7 +52,7 @@ jobs:
           command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
       - run:
           name: Set Local IP of AIO container
-          command: BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && BASE_URL_TEST
+          command: export BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && echo $BASE_URL_TEST
       - run:
           name: Run tests (env variables in project settings)
           command: HF_ENVIRONMENT=test HF_LOG_LEVEL=DEBUG HF_LOG_CONSOLE_ENABLE=TRUE pytest -s --log-cli-level=DEBUG --cov ./humanfirst/ --cov-report html --cov-report term
