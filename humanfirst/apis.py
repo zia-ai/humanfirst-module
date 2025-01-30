@@ -217,6 +217,7 @@ class HFAPI:
         # by default the url points to prod
         # This case section sets the Key used to authenticate with the GCP key issuing server
         # and the URL of the humanfirst environment
+        logger.debug(f'self.studio_environment: {self.studio_environment}')
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
         # This option assumes you are running a container locally
@@ -224,6 +225,7 @@ class HFAPI:
         # BASE_URL_TEST
         elif self.studio_environment == "test":
             self.base_url = os.environ.get("BASE_URL_TEST")
+            logger.debug(f'self.base_url: {self.base_url}')
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
         elif self.studio_environment == "qa":
