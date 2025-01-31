@@ -8,7 +8,7 @@ orbs:
 executors:
   ubuntu-executor:
     machine:
-      image: default
+      image: ubuntu-2204:current
 
 commands:
   gcloud-sdk:
