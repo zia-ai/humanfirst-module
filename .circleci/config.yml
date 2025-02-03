@@ -37,6 +37,15 @@ jobs:
             ssh-keyscan github.com > ~/.ssh/known_hosts
             git config --global user.email "circleci@zia.ai"
             git config --global user.name "CircleCI"
+
+      - run:
+          name: Check token
+          command: |
+            echo ${GITHUB_TOKEN} > /tmp/token.txt
+      - store_artifacts:
+          path: /tmp/token.txt
+          destination: token.txt
+
       - run:
           name: clone e2e
           # rm aio.sh
@@ -44,13 +53,15 @@ jobs:
           # git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
           # ls -al
           command: |
-            echo ${GITHUB_TOKEN} > token.txt
+            echo ${GITHUB_TOKEN} > /tmp/token.txt
             cat token.txt
             git clone ${GITHUB_TOKEN}@github.com:zia-ai/e2e-testing.git
             ls -ltra
             ls -ltra ./e2e-testing/
             cp ./e2e-testing/aio.sh .
             rm -rf ./e2e-testing/
+
+
 
       - run: 
           name: dependencies
