@@ -31,18 +31,33 @@ constants = ConfigParser()
 path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
 
+# Timeouts
 TIMEOUT = int(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
+
+# Audiences
 STAGING_AUDIENCE = constants.get("humanfirst.CONSTANTS","STAGING_AUDIENCE")
 PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PROD_AUDIENCE")
 QA_AUDIENCE = constants.get("humanfirst.CONSTANTS","QA_AUDIENCE")
 PRE_PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PRE_PROD_AUDIENCE")
 TEST_AUDIENCE = constants.get("humanfirst.CONSTANTS","TEST_AUDIENCE")
+
+# Google serts
 GOOGLE_CERTS_URL = constants.get("humanfirst.CONSTANTS","GOOGLE_CERTS_URL")
+
+# API keys (which are validated by config call)
 TEST_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","TEST_SIGN_IN_API_KEY")
 PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KEY")
 STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
 QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
 PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
+
+# BASE_URL_TEST must be set by environment variable expected of the form BASE_URL_TEST=http://172.17.0.3:8888
+BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
+BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
+BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
+BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+
+# others
 TOKEN_REVALIDATE_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TOKEN_REVALIDATE_WAIT_TIME"))
 
 # locate where we are
@@ -190,18 +205,25 @@ class Authorization:
         if environment == "prod":
             self.audience = PROD_AUDIENCE
             self.identity_api_key = PROD_SIGN_IN_API_KEY
+            self.base_url = BASE_URL_PROD
         elif environment == "test":
             self.audience = TEST_AUDIENCE
             self.identity_api_key = TEST_SIGN_IN_API_KEY
+            self.base_url = os.getenv("BASE_URL_TEST",None)
+            if self.base_url == None:
+                raise RuntimeError(f'If using test environment must provide BASE_URL_TEST to call as an env variable')
         elif environment == "staging":
             self.audience = STAGING_AUDIENCE
             self.identity_api_key = STAGING_SIGN_IN_API_KEY
+            self.base_url = BASE_URL_STAGING
         elif environment == "qa":
             self.audience = QA_AUDIENCE
             self.identity_api_key = QA_SIGN_IN_API_KEY
+            self.base_url = BASE_URL_QA
         elif environment == "pre_prod":
             self.audience = PRE_PROD_AUDIENCE
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
+            self.base_url = BASE_URL_PRE_PROD
         else:
             raise HFEnvironmentException(
                 "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
@@ -215,9 +237,49 @@ class Authorization:
         }
 
         self.timeout = timeout
+        
+        self._validate_config()
 
         self._authorize(username=username,
                         password=password)
+
+    def _validate_config(self):
+        """Calls the config end point for that URL
+        /v1alpha1/config/environment
+        and checks whether the 
+        values in the config file match what is there"""
+        url = f'{self.base_url}/v1alpha1/config/environment'
+        
+        # this end point doesn't require authorisation 
+        # as it provides the config for authorisation so unique headers
+        payload = {}
+        headers = {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json'
+        }
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload))
+        if response.status_code != 200 and response.status_code != 201:
+            raise RuntimeError(f'Couldn\'t verify config from: {url}')       
+        cfg = response.json()
+        
+        # Previously these were all just stored locally so validating the local value against the API rather than just
+        # taking from the API.
+        logger.debug(cfg)
+        if cfg["firebase"]["apiKey"] != self.identity_api_key:
+            raise RuntimeError(f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["apiKey"]}')
+        
+        # some environments may need a tennant id
+        self.tenant_id = None
+        if "firebase" in cfg:
+            if "defaultTenantId" in cfg["firebase"]:
+                self.tenant_id = cfg["firebase"]["defaultTenantId"]
+        
+        # if we have an audience in the config validate it against the config values
+        if "firebase" in cfg:
+            if "audience" in cfg["firebase"]:
+                if self.audience != cfg["firebase"]["audience"]:
+                    raise RuntimeError(f'Audience in cfg file: {self.audience} doesn\'t match api config: {cfg["firebase"]["audience"]}')
 
     def _authorize(self, username: str, password: str, timeout: float = None) -> dict:
         '''Get bearer token for a username and password'''
@@ -232,6 +294,12 @@ class Authorization:
             "password": password,
             "returnSecureToken": True
         }
+        
+        # If we have a tennant ID add it to the auth body
+        if self.tenant_id:
+            logger.info(f'tenantId: {self.tenant_id}')
+            auth_body["tenantId"] = self.tenant_id
+            
         effective_timeout = timeout if timeout is not None else self.timeout
         auth_response = requests.request(
             "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
