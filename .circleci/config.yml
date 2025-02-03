@@ -23,7 +23,6 @@ commands:
           gcloud --quiet container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
           kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
 
-
 jobs:
   build-and-test:
     executor: ubuntu-executor
@@ -39,19 +38,17 @@ jobs:
             git config --global user.name "CircleCI"
 
       - run:
-          name: Check token
-          command: |
-            echo ${GITHUB_TOKEN} > /tmp/token.txt
-      - store_artifacts:
-          path: /tmp/token.txt
-          destination: token.txt
-
-      - run:
-          name: clone e2e
+          name: clone e2e and copy just aio.sh file
           # git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
           command: |            
             git clone https://${GH_USERNAME}:${GH_PERSONAL_TOKEN}@github.com/zia-ai/e2e-testing.git /tmp/e2e-testing
             cp /tmp/e2e-testing/aio.sh .
+            pwd > /tmp/dir_contents.txt
+            ls -ltra >> /tmp/dir_contents.txt
+
+      - store_artifacts:
+          path: /tmp/dir_contents.txt
+          destination: dir_contents.txt
 
       - run: 
           name: dependencies
