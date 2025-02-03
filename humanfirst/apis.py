@@ -217,15 +217,13 @@ class HFAPI:
         # by default the url points to prod
         # This case section sets the Key used to authenticate with the GCP key issuing server
         # and the URL of the humanfirst environment
-        logger.debug(f'self.studio_environment: {self.studio_environment}')
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
         # This option assumes you are running a container locally
         # In this case the IP address must be set as a Env variable
         # BASE_URL_TEST
         elif self.studio_environment == "test":
-            self.base_url = os.environ.get("BASE_URL_TEST","http://172.17.0.2:8888") # default to the CI environment most likely value
-            logger.debug(f'self.base_url: {self.base_url}')
+            self.base_url = os.environ.get("BASE_URL_TEST")
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
         elif self.studio_environment == "qa":
