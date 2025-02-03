@@ -48,20 +48,10 @@ jobs:
 
       - run:
           name: clone e2e
-          # rm aio.sh
-          # ls -al
           # git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
-          # ls -al
-          command: |
-            echo ${GITHUB_TOKEN} > /tmp/token.txt
-            cat token.txt
-            git clone ${GITHUB_TOKEN}@github.com:zia-ai/e2e-testing.git
-            ls -ltra
-            ls -ltra ./e2e-testing/
-            cp ./e2e-testing/aio.sh .
-            rm -rf ./e2e-testing/
-
-
+          command: |            
+            git clone https://${GH_USERNAME}:${GH_PERSONAL_TOKEN}@github.com/zia-ai/e2e-testing.git /tmp/e2e-testing
+            cp /tmp/e2e-testing/aio.sh .
 
       - run: 
           name: dependencies
