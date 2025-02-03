@@ -39,16 +39,9 @@ jobs:
 
       - run:
           name: clone e2e and copy just aio.sh file
-          # git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
           command: |            
             git clone https://${GH_USERNAME}:${GH_PERSONAL_TOKEN}@github.com/zia-ai/e2e-testing.git /tmp/e2e-testing
             cp /tmp/e2e-testing/aio.sh .
-            pwd > /tmp/dir_contents.txt
-            ls -ltra >> /tmp/dir_contents.txt
-
-      - store_artifacts:
-          path: /tmp/dir_contents.txt
-          destination: dir_contents.txt
 
       - run: 
           name: dependencies
