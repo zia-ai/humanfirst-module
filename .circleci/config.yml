@@ -70,7 +70,7 @@ jobs:
           pkg-manager: pip
       - run:
           name: Start AIO container
-          command: EMBEDDINGS_K8S_FORWARD=1 aio.sh start
+          command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
       - run:
           name: Set Local IP of AIO container
           command: export BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && echo "$BASE_URL_TEST"
