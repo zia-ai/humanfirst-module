@@ -238,17 +238,25 @@ class Authorization:
 
         self.timeout = timeout
         
-        self._validate_config()
+        self._validate_config(environment=environment)
 
         self._authorize(username=username,
                         password=password)
 
-    def _validate_config(self):
+    def _validate_config(self, environment: str = "prod"):
         """Calls the config end point for that URL
         /v1alpha1/config/environment
         and checks whether the 
-        values in the config file match what is there"""
-        url = f'{self.base_url}/v1alpha1/config/environment'
+        values in the config file match what is there
+        
+        if environment=test tries to validate against
+        staging assuming your test env is using staging
+        authorisation
+        """
+        if not environment == "test":
+            url = f'{self.base_url}/v1alpha1/config/environment'
+        else:
+            url = f'{BASE_URL_STAGING}/v1alpha1/config/environment'
         
         # this end point doesn't require authorisation 
         # as it provides the config for authorisation so unique headers
@@ -267,7 +275,7 @@ class Authorization:
         # taking from the API.
         logger.debug(cfg)
         if cfg["firebase"]["apiKey"] != self.identity_api_key:
-            raise RuntimeError(f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["apiKey"]}')
+            raise RuntimeError(f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["firebase"]["apiKey"]}')
         
         # some environments may need a tennant id
         self.tenant_id = None
