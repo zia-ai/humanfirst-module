@@ -169,3 +169,7 @@ package_test.py
 # CI/CD related ignores
 ubuntu-venv
 ubuntu-venv/*
+
+# Anything from e2e repo cloned for e2e testing responsibiliies
+e2e-testing/*
+*aio.sh*

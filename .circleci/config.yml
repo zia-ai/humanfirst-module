@@ -38,12 +38,18 @@ jobs:
             git config --global user.email "circleci@zia.ai"
             git config --global user.name "CircleCI"
       - run:
-          name: copy aio.sh
+          name: clone e2e
+          # rm aio.sh
+          # ls -al
+          # git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
+          # ls -al
           command: |
-            rm aio.sh
-            ls -al
-            git archive --remote=https://${GITHUB_TOKEN}@github.com/zia-ai/e2e-testing.git dev aio.sh | tar -xO aio.sh > aio.sh
-            ls -al
+            git clone git@github.com:zia-ai/e2e-testing.git
+            ls -ltra
+            ls -ltra ./e2e-testing/
+            cp ./e2e-testing/aio.sh .
+            rm -rf ./e2e-testing/
+
 
       - run: 
           name: dependencies
@@ -65,7 +71,7 @@ jobs:
           pkg-manager: pip
       - run:
           name: Start AIO container
-          command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
+          command: EMBEDDINGS_K8S_FORWARD=1 aio.sh start
       - run:
           name: Set Local IP of AIO container
           command: export BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && echo "$BASE_URL_TEST"
