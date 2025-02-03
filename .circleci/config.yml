@@ -66,12 +66,12 @@ jobs:
           command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
       - run:
           # Should output like http://172.17.0.2:8888 in CI or http://172.17.0.3:8888 if you are within an existing docker locally
-          # Using Circle CI have to push it to BASH_ENV as each step is a new shell
-          name: Set Local IP of AIO container
-          command: export BASE_URL_TEST=http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" && echo 'export BASE_URL_TEST=${BASE_URL_TEST}' >> $BASH_ENV
+          # Going via a file aio.ip because each step of CircleCI is a new shell so env variables don't pass between
+          name: Set Local IP of AIO container to aio.ip text file
+          command: echo http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" > aio.ip
       - run:
           name: Run tests (env variables in project settings)
-          command: HF_ENVIRONMENT=test HF_LOG_LEVEL=WARNING HF_LOG_CONSOLE_ENABLE=TRUE pytest -s --log-cli-level=WARNING --cov ./humanfirst/ --cov-report html --cov-report term
+          command: HF_ENVIRONMENT=test HF_LOG_LEVEL=WARNING HF_LOG_CONSOLE_ENABLE=TRUE BASE_URL_TEST=`cat ./aio.ip` pytest -s --log-cli-level=WARNING --cov ./humanfirst/ --cov-report html --cov-report term
 
 workflows:
   test-aio: 
