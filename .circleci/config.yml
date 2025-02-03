@@ -62,8 +62,10 @@ jobs:
       - python/install-packages:
           pkg-manager: pip
       - run:
+          # aio script is in a private repo
+          # aio script defaults to dev branch override with backend AIO_TAG_OVERRIDE=<release value>  i.e v1.67.2
           name: Start AIO container
-          command: EMBEDDINGS_K8S_FORWARD=1 ./aio.sh start
+          command: EMBEDDINGS_K8S_FORWARD=1 AIO_TAG_OVERRIDE=v1.67.2 ./aio.sh start
       - run:
           # Should output like http://172.17.0.2:8888 in CI or http://172.17.0.3:8888 if you are within an existing docker locally
           # Going via a file aio.ip because each step of CircleCI is a new shell so env variables don't pass between
