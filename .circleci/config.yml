@@ -40,7 +40,7 @@ jobs:
       - run:
           name: clone e2e and copy just aio.sh file
           command: |            
-            git clone https://${GH_USERNAME}:${GH_PERSONAL_TOKEN}@github.com/zia-ai/e2e-testing.git /tmp/e2e-testing
+            git clone git@github.com:zia-ai/e2e-testing.git /tmp/e2e-testing
             cp /tmp/e2e-testing/aio.sh .
 
       - run: 
