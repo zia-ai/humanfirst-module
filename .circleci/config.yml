@@ -73,7 +73,7 @@ jobs:
           command: echo http:\/\/`docker inspect --format '{{ .NetworkSettings.IPAddress }}' aio`":8888" > aio.ip
       - run:
           name: Run tests (env variables in project settings)
-          command: HF_ENVIRONMENT=test HF_LOG_LEVEL=WARNING HF_LOG_CONSOLE_ENABLE=TRUE BASE_URL_TEST=`cat ./aio.ip` pytest -s --log-cli-level=WARNING --cov ./humanfirst/ --cov-report html --cov-report term
+          command: HF_ENVIRONMENT=test HF_LOG_LEVEL=DEBUG HF_LOG_CONSOLE_ENABLE=TRUE BASE_URL_TEST=`cat ./aio.ip` pytest -s --log-cli-level=DEBUG --cov ./humanfirst/ --cov-report html --cov-report term
 
 workflows:
   test-aio: 
