@@ -238,12 +238,12 @@ class Authorization:
 
         self.timeout = timeout
         
-        self._validate_config(environment=environment)
+        self._validate_config()
 
         self._authorize(username=username,
                         password=password)
 
-    def _validate_config(self, environment: str = "prod"):
+    def _validate_config(self):
         """Calls the config end point for that URL
         /v1alpha1/config/environment
         and checks whether the 
@@ -253,10 +253,7 @@ class Authorization:
         staging assuming your test env is using staging
         authorisation
         """
-        if not environment == "test":
-            url = f'{self.base_url}/v1alpha1/config/environment'
-        else:
-            url = f'{BASE_URL_STAGING}/v1alpha1/config/environment'
+        url = f'{self.base_url}/v1alpha1/config/environment'
         
         # this end point doesn't require authorisation 
         # as it provides the config for authorisation so unique headers
