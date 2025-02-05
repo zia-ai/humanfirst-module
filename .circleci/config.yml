@@ -20,8 +20,7 @@ commands:
           gcloud --quiet auth configure-docker
           gcloud --quiet components install gke-gcloud-auth-plugin
           echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> ~/.profile
-          gcloud --quiet container clusters get-credentials zia-prod-1 --zone us-east1-b --project trial-184203
-          kubectl config rename-context gke_trial-184203_us-east1-b_zia-prod-1 staging
+          gcloud container clusters get-credentials ${EMBEDDINGS_K8S_CLUSTER} --region ${EMBEDDINGS_GCP_REGION} --project ${EMBEDDINGS_GCP_PROJECT}
 
 jobs:
   build-and-test:
