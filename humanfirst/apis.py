@@ -45,11 +45,6 @@ EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
-# BASE_URL_TEST must be set by environment variable expected of the form BASE_URL_TEST=http://172.17.0.3:8888
-BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
-BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
-BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
-BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
 BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
 
 # trigger states
@@ -59,6 +54,20 @@ TRIGGER_STATUS_RUNNING = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_RU
 TRIGGER_STATUS_COMPLETED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_COMPLETED")
 TRIGGER_STATUS_FAILED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_FAILED")
 TRIGGER_STATUS_CANCELLED = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_CANCELLED")
+
+# BASE_URL_TEST must be set by environment variable expected of the form BASE_URL_TEST=http://172.17.0.3:8888
+BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
+BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
+BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
+BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+
+
+# API keys (which are validated by config call)
+TEST_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","TEST_SIGN_IN_API_KEY")
+PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KEY")
+STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
+QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
+PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -245,19 +254,26 @@ class HFAPI:
         # and the URL of the humanfirst environment
         if self.studio_environment == "prod":
             self.base_url = BASE_URL_PROD
+            self.identity_api_key = PROD_SIGN_IN_API_KEY
         # This option assumes you are running a container locally
         # In this case the IP address must be set as a Env variable
         # BASE_URL_TEST
         elif self.studio_environment == "test":
             self.base_url = os.environ.get("BASE_URL_TEST")
+            # Assumption is that local test image is using STAGING key for credentials.
+            self.identity_api_key = STAGING_SIGN_IN_API_KEY
         elif self.studio_environment == "staging":
             self.base_url = BASE_URL_STAGING
+            self.identity_api_key = STAGING_SIGN_IN_API_KEY
         elif self.studio_environment == "qa":
             self.base_url = BASE_URL_QA
+            self.identity_api_key = QA_SIGN_IN_API_KEY
         elif self.studio_environment == "pre_prod":
             self.base_url = BASE_URL_PRE_PROD
+            self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         elif self.studio_environment == "local":
             self.base_url = BASE_URL_LOCAL
+            self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
                 "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod, local")
