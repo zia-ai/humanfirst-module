@@ -141,6 +141,16 @@ def test_get_conversation_set_list():
                                         convoset_id=conversation_obj1["convoset_id"])
         raise
 
+def test_simple_list_playbooks():
+    """Test listing playbooks without a conversation_set_id"""
+    hf_api = humanfirst.apis.HFAPI()
+    hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    
+def test_old_list_playbooks():
+    """Test listing playbooks without a conversation_set_id"""
+    hf_api = humanfirst.apis.HFAPI()
+    hf_api.list_playbooks_old(namespace=TEST_NAMESPACE)
+
 def test_list_playbooks():
     """Test listing playbooks with and without a conversation_set_id"""
 
@@ -715,6 +725,7 @@ def test_conversation_set_functionalities():
         assert isinstance(conversation_obj["convosrc_id"], str)
         assert "convset-" in conversation_obj["convoset_id"]
         assert "convsrc-" in conversation_obj["convosrc_id"]
+        logger.info(f'Created convoset_id: {conversation_obj["convoset_id"]}')
 
         # test upload a file to the conversation set
         upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
@@ -722,6 +733,7 @@ def test_conversation_set_functionalities():
                                                                 upload_name="abcd_108_test",
                                                                 fqfp="./examples/abcd_2022_05_convo_108.json"
                                                                 )
+        logger.info(f'Uploaded JSON: {upload_response}')
 
         assert isinstance(upload_response,dict)
         assert upload_response["filename"] == "abcd_108_test"
@@ -733,7 +745,6 @@ def test_conversation_set_functionalities():
 
         list_files = hf_api.list_conversation_src_files(namespace=TEST_NAMESPACE,
                                                         conversation_set_src_id=conversation_obj["convosrc_id"])
-
         assert isinstance(list_files,list)
         assert len(list_files) == 1
         assert list_files[0]["name"] == "abcd_108_test"
@@ -742,6 +753,8 @@ def test_conversation_set_functionalities():
         upload_time = list_files[0]["uploadTime"]
         upload_datetime = parser.parse(upload_time)
         assert isinstance(upload_datetime,datetime)
+        
+        logger.info(f'Listed files: {list_files}')
 
         # test linking the conversation set to a workspace
         try:
@@ -751,6 +764,7 @@ def test_conversation_set_functionalities():
                                     playbook_name="test link-unlink dataset")
 
             assert "playbook-" in playbook_id
+            logger.info(f'Created playbook: {playbook_id}')
 
             try:
                 link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE, playbook_id=playbook_id,
