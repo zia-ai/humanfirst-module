@@ -170,5 +170,7 @@ package_test.py
 ubuntu-venv
 ubuntu-venv/*
 
-# AIO for internal HF testing
+# Anything from e2e repo cloned for e2e testing responsibiliies
+e2e-testing/*
 *aio.sh*
+*aio.ip*

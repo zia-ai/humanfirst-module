@@ -12,7 +12,6 @@ import json
 from configparser import ConfigParser
 from datetime import datetime
 import uuid
-import math
 from dateutil import parser
 
 
@@ -850,10 +849,15 @@ def test_batch_predict():
     file_in.close()
 
     # Send it to that workspace
-    hf_api.import_intents(namespace=TEST_NAMESPACE,
+    import_intents_response = hf_api.import_intents(namespace=TEST_NAMESPACE,
                           playbook=playbook_id,
                           workspace_as_dict=workspace_dict)
-
+    print(import_intents_response)
+    
+    # this is going to start an import job but we aren't quite sure when it finsihes and we don't have an import trigger to check
+    # so wait a moment before triggering NLU this improves reliability of the test.
+    time.sleep(1)
+    
     # train the NLU on that workspace
     train_nlu_trigger = hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
                                                 playbook=playbook_id,
@@ -864,8 +868,15 @@ def test_batch_predict():
     # Use describetrigger to know the status of NLU training
     total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE, trigger_id=train_nlu_trigger["triggerId"])
     
-    # Also then poll check for being trained (should be when trigger completes above)
-    sleep_counter = 0 # doin linear rather than expo backoff in this test
+    if total_wait_time == 0:
+        raise RuntimeError(f'Timed out waiting for NLU to finish training')
+    elif total_wait_time == -1:
+        raise RuntimeError(f'NLU Training cancelled')
+    else:
+        print(f"Total wait for NLU to train is: {total_wait_time}")
+    
+    # Also then poll check for being trained (should already be when trigger completes above)
+    sleep_counter = 0 # doing linear rather than expo backoff in this test
     total_wait_time = 0
     list_trained_nlu = []
     while len(list_trained_nlu) == 0:
@@ -1048,9 +1059,10 @@ def test_cleanup_convosets_and_workspaces():
 def test_get_conversation_set_list_simple():
     hf_api = humanfirst.apis.HFAPI()
     convosets = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
-    assert len(convosets) > 0
-    df_simple = pandas.json_normalize(convosets)
-    assert isinstance(df_simple,pandas.DataFrame)
+    # if running with aio image which starts completely empty this will have 0 convosets
+    if len(convosets) > 0:
+        df_simple = pandas.json_normalize(convosets)
+        assert isinstance(df_simple,pandas.DataFrame)
 
 # This test is for a legacy piece of functionality and very slow so commenting for speed.
 # TODO: decommission this function
