@@ -229,8 +229,8 @@ class HFAPI:
                 2.1.2. A .env file be placed in the root directory of the project.
             2.2. username and password can be passed while instantiating the object.
             
-        min_expires_in_seconds can be used to set how long on the token minimum is expected
-        it defaults to 1800s which is half the total expiry window
+        min_expires_in_seconds can be used to set how long on the token is expected to remain
+        it defaults to 1800s which is half the total expiry window 3600
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -283,7 +283,7 @@ class HFAPI:
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod, local")
+                "HF_ENVIRONMENT is not set to one of the following - prod, test, staging, qa, pre_prod or local")
 
         # Check if URL ends with /
         if self.base_url[-1] == "/":

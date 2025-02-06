@@ -182,8 +182,8 @@ class Authorization:
         """
         Initializes bearertoken
         
-        Class can be set to ensure that each call there is at least a minimum amount
-        of seconds before token expiry
+        min_expires_in_seconds can be overriden to ensure that each call there is at least a minimum amount
+        of seconds before token expiry.
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -242,7 +242,7 @@ class Authorization:
             self.base_url = BASE_URL_LOCAL
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, test, staging, qa, pre_prod")
 
         self.bearer_token_dict = {
             "token" : "",
