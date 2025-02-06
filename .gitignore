@@ -176,4 +176,4 @@ e2e-testing/*
 *aio.ip*
 
 # log file
-output.txt
+output*.txt
