@@ -62,7 +62,10 @@ BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
 # others
 LOCAL_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","LOCAL_SIGN_IN_API_KEY")
 TOKEN_REVALIDATE_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TOKEN_REVALIDATE_WAIT_TIME"))
+
+# token refresh
 PREEMPTIVE_REFRESH_SECONDS_DEFAULT = int(constants.get("humanfirst.CONSTANTS","PREEMPTIVE_REFRESH_SECONDS_DEFAULT"))
+HUMANFIRST_TOKEN_TTL_SECONDS = int(constants.get("humanfirst.CONSTANTS","HUMANFIRST_TOKEN_TTL_SECONDS"))
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -457,8 +460,8 @@ class Authorization:
                     time_diff = self.bearer_token_dict["client_time"] - self.bearer_token_dict["decoded_token"]["iat"]
                     
                     # Determine if want to pre-emptively refresh token
-                    if (3600-time_diff) <= self.min_expires_in_seconds: 
-                        logger.info(f"Pre-emptively refresh token as seconds to expiry: {3600-time_diff} less than min: {self.min_expires_in_seconds}")
+                    if (HUMANFIRST_TOKEN_TTL_SECONDS-time_diff) <= self.min_expires_in_seconds: 
+                        logger.info(f"Pre-emptively refresh token at client_time: {decoded_token_iat} as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} less than min: {self.min_expires_in_seconds} for expiry time {decoded_token_exp} ")
                         refresh_response = self._refresh_token(self.bearer_token_dict["refresh_token"])
                         self.bearer_token_dict["token"] = refresh_response.get("id_token")
                         self.bearer_token_dict["refresh_token"] = refresh_response.get("refresh_token")
@@ -469,7 +472,7 @@ class Authorization:
                         # refreshed the token
                         return
                     else:
-                        logger.debug(f"Didn't refresh token as seconds to expiry: {3600-time_diff} > than min: {self.min_expires_in_seconds}")
+                        logger.debug(f"Didn't refresh token as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} > than min: {self.min_expires_in_seconds} client_time: {decoded_token_iat} expiry_time: {decoded_token_exp}")
                         
                     
                     # So we had a valid token and didn't need to refresh it
@@ -511,34 +514,3 @@ class Authorization:
             logger.error("An error occurred while retrieving Google's public keys: %s",str(e))
             raise
 
-# # Example usage
-# auth = Authorization(username=os.getenv("HF_USERNAME"), password=os.getenv("HF_PASSWORD"))
-# print(auth.bearer_token_dict["token"])
-
-# # Get the current system time in Unix timestamp format
-# current_time = int(time.time())
-
-# # Extract the expiration time from the JWT token
-# expiration_time = auth.bearer_token_dict["decoded_token"]["exp"]
-# issued_at_time = auth.bearer_token_dict["decoded_token"]["iat"]
-
-# # Check if the current time is within the expiration time
-# if current_time < expiration_time:
-#     print("The token is still valid.")
-# else:
-#     print("The token has expired.")
-
-# print(current_time)
-# print(issued_at_time)
-# print(expiration_time)
-
-# # Optionally print the current time and expiration time for reference
-# current_time_str = datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S')
-# expiration_time_str = datetime.fromtimestamp(expiration_time).strftime('%Y-%m-%d %H:%M:%S')
-
-# print(f"Current time: {current_time_str}")
-# print(f"Expiration time: {expiration_time_str}")
-
-# # Calculate the difference between current time and expiration time in Unix timestamp
-# difference = current_time - issued_at_time
-# print(f"Difference between current time and expiration time: {difference} seconds")
