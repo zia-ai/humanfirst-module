@@ -25,7 +25,7 @@ import requests_toolbelt
 from dotenv import load_dotenv, find_dotenv
 
 # custom imports
-from .firebase_authorization import FirebaseAuthorization
+from .authorization import Authorization
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -287,10 +287,10 @@ class HFAPI:
             # and then checks the .env varaiables
             api_key = os.environ.get("HF_API_KEY")
             if api_key is None:
-                warnings.warn("Recommended authentication is using HumanFirst API key in env variable HF_API_KEY")
+                logger.info("Authentication is available using HumanFirst API key in env variable HF_API_KEY")
                 # TODO: link to docs for how to use
                 self.auth_type = FIREBASE
-                self.firebase_auth = FirebaseAuthorization(username=username,
+                self.firebase_auth = Authorization(username=username,
                                                   password=password,
                                                   environment=self.studio_environment,
                                                   timeout=self.timeout)
@@ -1016,6 +1016,7 @@ class HFAPI:
             self.firebase_auth.validate_jwt()
             bearer_string = f'Bearer {self.firebase_auth.bearer_token_dict["token"]}'
         elif self.auth_type == API_KEY:
+            logger.debug(f'Using passed bearer string')
             bearer_string = f'Bearer {self.api_key}'
         else:
             raise HFAPIAuthenticationTypeException("Authentication type is neither firebase not api_key")
