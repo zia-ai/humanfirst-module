@@ -69,6 +69,9 @@ STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_
 QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
 PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
 
+# others
+PREEMPTIVE_REFRESH_SECONDS_DEFAULT = int(constants.get("humanfirst.CONSTANTS","PREEMPTIVE_REFRESH_SECONDS_DEFAULT"))
+
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
 
@@ -201,6 +204,7 @@ class HFAPI:
                  password: str = "",
                  environment: str = "",
                  api_version: str = "",
+                 min_expires_in_seconds: int = PREEMPTIVE_REFRESH_SECONDS_DEFAULT,
                  timeout: float = TIMEOUT):
         """
         Initializes bearertoken
@@ -224,6 +228,9 @@ class HFAPI:
                 2.1.1. Using CLI
                 2.1.2. A .env file be placed in the root directory of the project.
             2.2. username and password can be passed while instantiating the object.
+            
+        min_expires_in_seconds can be used to set how long on the token minimum is expected
+        it defaults to 1800s which is half the total expiry window
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -293,6 +300,7 @@ class HFAPI:
                 self.firebase_auth = Authorization(username=username,
                                                   password=password,
                                                   environment=self.studio_environment,
+                                                  min_expires_in_seconds=min_expires_in_seconds,
                                                   timeout=self.timeout)
             else:
                 self.auth_type = API_KEY

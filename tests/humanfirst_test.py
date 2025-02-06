@@ -1152,6 +1152,21 @@ def test_get_conversation_set_list_simple():
         df_simple = pandas.json_normalize(convosets)
         assert isinstance(df_simple,pandas.DataFrame)
 
+def test_refresh_minimnum_expiry():
+    hf_api = humanfirst.apis.HFAPI(min_expires_in_seconds=3597) # i.e only 3 seconds old with window of 1 hour
+    
+    # list the playbooks - get the first token
+    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    
+    # sleep 0 - should have same token
+    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    
+    # sleep 3 more - should get new token
+    time.sleep(3)
+    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+    
+
+
 # This test is for a legacy piece of functionality and very slow so commenting for speed.
 # TODO: decommission this function
 # def test_get_conversation_set_list_deep_report():
