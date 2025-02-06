@@ -144,12 +144,12 @@ def test_get_conversation_set_list():
 def test_simple_list_playbooks():
     """Test listing playbooks without a conversation_set_id"""
     hf_api = humanfirst.apis.HFAPI()
-    hf_api.list_playbooks(namespace=TEST_NAMESPACE)
-    
-def test_old_list_playbooks():
+    hf_api.list_playbooks(namespace=TEST_NAMESPACE,conversation_set_id="blah")
+
+def test_new_list_playbooks():
     """Test listing playbooks without a conversation_set_id"""
     hf_api = humanfirst.apis.HFAPI()
-    hf_api.list_playbooks_old(namespace=TEST_NAMESPACE)
+    hf_api.list_playbooks_new(namespace=TEST_NAMESPACE)
 
 def test_list_playbooks():
     """Test listing playbooks with and without a conversation_set_id"""

@@ -429,8 +429,13 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks_old(self, namespace: str, timeout: float = None) -> dict:
-        '''Returns list of all playbooks for an organisation'''
+    # version with workspaces
+    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
+        '''Returns list of all playbooks for an organisation
+        Note namepsace parameter doesn't appear to provide filtering
+        
+        If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
+        '''
         
         payload = {
             "namespace": namespace
@@ -438,13 +443,16 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        url = f'{self.base_url}/{self.api_version}/playbooks'
+        query_params = f"namespace={namespace}&conversation_set_id={conversation_set_id}"
+
+        url = f'{self.base_url}/{self.api_version}/workspaces/humanfirst?{query_params}'
         effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
+    # as originally in PR - with playbooks
+    def list_playbooks_new(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering
         
