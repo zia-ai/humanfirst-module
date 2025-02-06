@@ -427,6 +427,7 @@ class Authorization:
 
                     # Token is valid
                     logger.debug("Token is valid")
+                    # logger.debug(self.bearer_token_dict["token"])
                     logger.debug("Decoded Token: %s", decoded_token)
                     # The timestamp is in unix format. Uncomment below to convert unix to utc format
                     # decoded_token['iat'] = datetime.fromtimestamp(
