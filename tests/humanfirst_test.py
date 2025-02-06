@@ -144,12 +144,12 @@ def test_get_conversation_set_list():
 def test_simple_list_playbooks():
     """Test listing playbooks without a conversation_set_id"""
     hf_api = humanfirst.apis.HFAPI()
-    hf_api.list_playbooks(namespace=TEST_NAMESPACE,conversation_set_id="blah")
+    hf_api.list_playbooks_old(namespace=TEST_NAMESPACE,conversation_set_id="blah")
 
 def test_new_list_playbooks():
     """Test listing playbooks without a conversation_set_id"""
     hf_api = humanfirst.apis.HFAPI()
-    hf_api.list_playbooks_new(namespace=TEST_NAMESPACE)
+    hf_api.list_playbooks(namespace=TEST_NAMESPACE)
 
 def test_list_playbooks():
     """Test listing playbooks with and without a conversation_set_id"""
@@ -1118,7 +1118,7 @@ def test_cleanup_convosets_and_workspaces():
 
     hf_api = humanfirst.apis.HFAPI()
 
-    # get all workspaces/playbooks - TODO: seems very slow when number of playbooks gets very large for instance on default namepsace
+    # get all workspaces/playbooks
     logger.info('Getting playbook list')
     list_playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE,timeout=120)
     logger.info(f'Number of playbooks returned: {len(list_playbooks)}')
@@ -1126,17 +1126,18 @@ def test_cleanup_convosets_and_workspaces():
     # find any that match and delete them
     for p in list_playbooks:
         if "name" in p.keys():
-            if p["name"] == "test link-unlink dataset":
+            if p["name"] in ["test link-unlink dataset","test list playbooks 1","test list playbooks 2"]:
                 playbook_delete_respone = hf_api.delete_playbook(namespace=TEST_NAMESPACE,playbook_id=p['id'])
                 logger.debug(playbook_delete_respone)
                 logger.info(f'Hard deleted playbook: {p["id"]}')
 
     # get all convosets
-    logger.info(f'Getting all convosets - this may be slow if there are many convosets')
+    logger.info(f'Getting all convosets')
     convoset_list = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE,timeout=120)
     logger.info(f'Received convosets: {len(convoset_list)}')
 
-    # Loop through deleting any that exist - checking to unlink first 
+    # Loop through deleting any that exist - assumption is all test workspaces have been deleted
+    # i.e no check to unlink, if something is still attached here there is a logical error earlier in the test
     for c in convoset_list:
         if c["name"] == TEST_CONVOSET:
             convoset_delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,convoset_id=c["id"])

@@ -430,7 +430,7 @@ class HFAPI:
         return self._validate_response(response, url, "playbooks")
 
     # version with workspaces
-    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
+    def list_playbooks_old(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering
         
@@ -452,7 +452,7 @@ class HFAPI:
         return self._validate_response(response, url, "playbooks")
 
     # as originally in PR - with playbooks
-    def list_playbooks_new(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
+    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
         Note namepsace parameter doesn't appear to provide filtering
         
