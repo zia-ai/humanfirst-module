@@ -39,6 +39,7 @@ STAGING_AUDIENCE = constants.get("humanfirst.CONSTANTS","STAGING_AUDIENCE")
 PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PROD_AUDIENCE")
 QA_AUDIENCE = constants.get("humanfirst.CONSTANTS","QA_AUDIENCE")
 PRE_PROD_AUDIENCE = constants.get("humanfirst.CONSTANTS","PRE_PROD_AUDIENCE")
+LOCAL_AUDIENCE = constants.get("humanfirst.CONSTANTS","LOCAL_AUDIENCE")
 TEST_AUDIENCE = constants.get("humanfirst.CONSTANTS","TEST_AUDIENCE")
 
 # Google serts
@@ -56,9 +57,15 @@ BASE_URL_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PROD")
 BASE_URL_STAGING = constants.get("humanfirst.CONSTANTS","BASE_URL_STAGING")
 BASE_URL_QA = constants.get("humanfirst.CONSTANTS","BASE_URL_QA")
 BASE_URL_PRE_PROD = constants.get("humanfirst.CONSTANTS","BASE_URL_PRE_PROD")
+BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
 
 # others
+LOCAL_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","LOCAL_SIGN_IN_API_KEY")
 TOKEN_REVALIDATE_WAIT_TIME = float(constants.get("humanfirst.CONSTANTS","TOKEN_REVALIDATE_WAIT_TIME"))
+
+# token refresh
+PREEMPTIVE_REFRESH_SECONDS_DEFAULT = int(constants.get("humanfirst.CONSTANTS","PREEMPTIVE_REFRESH_SECONDS_DEFAULT"))
+HUMANFIRST_TOKEN_TTL_SECONDS = int(constants.get("humanfirst.CONSTANTS","HUMANFIRST_TOKEN_TTL_SECONDS"))
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -166,12 +173,17 @@ class Authorization:
     audience: str
     identity_api_key: str
 
-    def __init__(self, username: str = "",
+    def __init__(self, 
+                 username: str = "",
                  password: str = "",
                  environment: str = "",
-                 timeout: float = TIMEOUT):
+                 timeout: float = TIMEOUT,
+                 min_expires_in_seconds: int = PREEMPTIVE_REFRESH_SECONDS_DEFAULT):
         """
         Initializes bearertoken
+        
+        min_expires_in_seconds can be overriden to ensure that each call there is at least a minimum amount
+        of seconds before token expiry.
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -224,9 +236,13 @@ class Authorization:
             self.audience = PRE_PROD_AUDIENCE
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
             self.base_url = BASE_URL_PRE_PROD
+        elif environment == "local":
+            self.audience = LOCAL_AUDIENCE
+            self.identity_api_key = LOCAL_SIGN_IN_API_KEY
+            self.base_url = BASE_URL_LOCAL
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, test, staging, qa, pre_prod")
 
         self.bearer_token_dict = {
             "token" : "",
@@ -235,6 +251,8 @@ class Authorization:
             "client_time": "",
             "environment": environment
         }
+        
+        self.min_expires_in_seconds = min_expires_in_seconds
 
         self.timeout = timeout
         
@@ -286,8 +304,14 @@ class Authorization:
                 if self.audience != cfg["firebase"]["audience"]:
                     raise RuntimeError(f'Audience in cfg file: {self.audience} doesn\'t match api config: {cfg["firebase"]["audience"]}')
 
-    def _authorize(self, username: str, password: str, timeout: float = None) -> dict:
-        '''Get bearer token for a username and password'''
+    def _authorize(self, 
+                   username: str, 
+                   password: str,
+                   timeout: float = None) -> dict:
+        '''Get bearer token for a username and password
+        
+        Premptively refresh the token is there is less than 
+        max_expires_in_seconds left'''
 
         base_url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='
         auth_url = f'{base_url}{self.identity_api_key}'
@@ -321,6 +345,7 @@ class Authorization:
 
         self.bearer_token_dict["token"] = auth_response.json().get("idToken")
         self.bearer_token_dict["refresh_token"] = auth_response.json().get("refreshToken")
+        
         # Now validate the JWT token
         if self.bearer_token_dict["token"]:
             self.validate_jwt()
@@ -358,7 +383,8 @@ class Authorization:
         }
         return headers
 
-    def validate_jwt(self, timeout: float = None) -> dict:
+    def validate_jwt(self, 
+                     timeout: float = None) -> dict:
         """Validate the JWT token using Google's public keys"""
 
         # Get Google Public Keys for RS256 validation
@@ -396,6 +422,8 @@ class Authorization:
             refresh_attempts = 0
             validation_attempts = 0
             while True:
+                # First case is where it decodes and is not expired in which case
+                # we make an additional check how much time is left on the token
                 try:
                     decoded_token = jwt.decode(
                         jwt=self.bearer_token_dict["token"],
@@ -419,27 +447,38 @@ class Authorization:
                     self.bearer_token_dict["client_time"]  = int(time.time())
 
                     # Token is valid
-                    logger.debug("Token is valid")
-                    logger.debug("Decoded Token: %s", decoded_token)
-                    # The timestamp is in unix format. Uncomment below to convert unix to utc format
-                    # decoded_token['iat'] = datetime.fromtimestamp(
-                    #     decoded_token['iat'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-                    # decoded_token['exp'] = datetime.fromtimestamp(
-                    #     decoded_token['exp'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-                    # Get the current system time in Unix timestamp format
+                    logger.debug("Valid Token: %s", decoded_token)
+                    
+                    # The timestamp is in unix format -  convert unix to utc format
+                    decoded_token_iat = datetime.fromtimestamp(decoded_token['iat'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                    decoded_token_exp = datetime.fromtimestamp(decoded_token['exp'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
                     # Extract the expiration time from the JWT token
                     self.bearer_token_dict["decoded_token"] = decoded_token
 
                     # Calculate the difference between current time and expiration time in Unix timestamp
                     time_diff = self.bearer_token_dict["client_time"] - self.bearer_token_dict["decoded_token"]["iat"]
-
-                    logger.debug("Current Client time: %s UTC", self.bearer_token_dict["client_time"])
-                    logger.debug('Token issued at time: %s UTC', self.bearer_token_dict["decoded_token"]["iat"])
-                    logger.debug('Token expiration time: %s UTC', self.bearer_token_dict["decoded_token"]["exp"])
-                    logger.debug("Difference between current time and token issue time: %s seconds", time_diff)
+                    
+                    # Determine if want to pre-emptively refresh token
+                    if (HUMANFIRST_TOKEN_TTL_SECONDS-time_diff) <= self.min_expires_in_seconds: 
+                        logger.info(f"Pre-emptively refresh token at client_time: {decoded_token_iat} as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} less than min: {self.min_expires_in_seconds} for expiry time {decoded_token_exp} ")
+                        refresh_response = self._refresh_token(self.bearer_token_dict["refresh_token"])
+                        self.bearer_token_dict["token"] = refresh_response.get("id_token")
+                        self.bearer_token_dict["refresh_token"] = refresh_response.get("refresh_token")
+                        if not self.bearer_token_dict["token"]:
+                            logger.error("Failed to refresh the token. No new ID token received.")
+                            time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
+                        refresh_attempts = refresh_attempts + 1
+                        # refreshed the token
+                        return
+                    else:
+                        logger.debug(f"Didn't refresh token as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} > than min: {self.min_expires_in_seconds} client_time: {decoded_token_iat} expiry_time: {decoded_token_exp}")
+                        
+                    
+                    # So we had a valid token and didn't need to refresh it
                     return
 
+                # in the case the token has expired already.
                 except ExpiredSignatureError:
                     if refresh_attempts >= 5:
                         logger.error("Refresh attempts exceeded 5 or more times")
@@ -453,50 +492,25 @@ class Authorization:
                         time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
                     refresh_attempts = refresh_attempts + 1
                     continue
+                
+                # In the case that the token can't be decoded.
                 except DecodeError:
-                    logger.error("The token is invalid.")
+                    logger.error("DecodeError failed to decode token")
                     raise
+                
+                # In the case 
                 except InvalidTokenError as e:
+                    logger.info("Token validation error: %s",str(e))
                     if validation_attempts >= 5:
                         logger.error("Validation attempts exceeded 5 or more times")
                         raise
-                    logger.info("Token validation error: %s",str(e))
-                    logger.info("Validating again...")
+                    logger.info(f"Validation attempt: {validation_attempts} validating again after a wait of: {TOKEN_REVALIDATE_WAIT_TIME}")
                     time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
                     validation_attempts = validation_attempts + 1
                     continue
+                
+                # So token here is valid and decoded
         except requests.exceptions.RequestException as e:
             logger.error("An error occurred while retrieving Google's public keys: %s",str(e))
             raise
 
-# # Example usage
-# auth = Authorization(username=os.getenv("HF_USERNAME"), password=os.getenv("HF_PASSWORD"))
-# print(auth.bearer_token_dict["token"])
-
-# # Get the current system time in Unix timestamp format
-# current_time = int(time.time())
-
-# # Extract the expiration time from the JWT token
-# expiration_time = auth.bearer_token_dict["decoded_token"]["exp"]
-# issued_at_time = auth.bearer_token_dict["decoded_token"]["iat"]
-
-# # Check if the current time is within the expiration time
-# if current_time < expiration_time:
-#     print("The token is still valid.")
-# else:
-#     print("The token has expired.")
-
-# print(current_time)
-# print(issued_at_time)
-# print(expiration_time)
-
-# # Optionally print the current time and expiration time for reference
-# current_time_str = datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S')
-# expiration_time_str = datetime.fromtimestamp(expiration_time).strftime('%Y-%m-%d %H:%M:%S')
-
-# print(f"Current time: {current_time_str}")
-# print(f"Expiration time: {expiration_time_str}")
-
-# # Calculate the difference between current time and expiration time in Unix timestamp
-# difference = current_time - issued_at_time
-# print(f"Difference between current time and expiration time: {difference} seconds")

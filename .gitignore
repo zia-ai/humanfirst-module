@@ -174,3 +174,6 @@ ubuntu-venv/*
 e2e-testing/*
 *aio.sh*
 *aio.ip*
+
+# log file
+output*.txt

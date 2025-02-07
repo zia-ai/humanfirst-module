@@ -15,6 +15,7 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
+import warnings
 import time # pylint: disable=unused-import
 import math
 
@@ -35,6 +36,8 @@ path_to_config_file = os.path.join(here,'config','setup.cfg')
 constants.read(path_to_config_file)
 
 CLOCK_SYNC_DRIFT_AMBIGUITY = 0
+FIREBASE = "firebase"
+API_KEY = "api_key"
 
 # constants need type conversion from str to int
 TIMEOUT = float(constants.get("humanfirst.CONSTANTS","TIMEOUT"))
@@ -42,6 +45,7 @@ EXPIRY_ADDITION = int(constants.get("humanfirst.CONSTANTS","EXPIRY_ADDITION"))
 VALID = constants.get("humanfirst.CONSTANTS","VALID")
 REFRESHING = constants.get("humanfirst.CONSTANTS","REFRESHING")
 EXPIRED = constants.get("humanfirst.CONSTANTS","EXPIRED")
+BASE_URL_LOCAL = constants.get("humanfirst.CONSTANTS","BASE_URL_LOCAL")
 
 # trigger states
 TRIGGER_STATUS_UNKNOWN = constants.get("humanfirst.CONSTANTS","TRIGGER_STATUS_UNKNOWN")
@@ -64,6 +68,9 @@ PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PROD_SIGN_IN_API_KE
 STAGING_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","STAGING_SIGN_IN_API_KEY")
 QA_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","QA_SIGN_IN_API_KEY")
 PRE_PROD_SIGN_IN_API_KEY = constants.get("humanfirst.CONSTANTS","PRE_PROD_SIGN_IN_API_KEY")
+
+# others
+PREEMPTIVE_REFRESH_SECONDS_DEFAULT = int(constants.get("humanfirst.CONSTANTS","PREEMPTIVE_REFRESH_SECONDS_DEFAULT"))
 
 # locate where we are
 path_to_log_config_file = os.path.join(here,'config','logging.conf')
@@ -167,6 +174,13 @@ class HFAPIParameterException(Exception):
         self.message = message
         super().__init__(self.message)
 
+class HFAPIAuthenticationTypeException(Exception):
+    """When authentication is neither firebase nor api key"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
 class HFEnvironmentException(Exception):
     """When user provides an incorrect environment"""
 
@@ -184,20 +198,39 @@ class HFAPI:
 
     bearer_token: dict
 
-    def __init__(self, username: str = "",
+    def __init__(self,
+                 api_key: str = "",
+                 username: str = "",
                  password: str = "",
                  environment: str = "",
                  api_version: str = "",
+                 min_expires_in_seconds: int = PREEMPTIVE_REFRESH_SECONDS_DEFAULT,
                  timeout: float = TIMEOUT):
         """
         Initializes bearertoken
 
         Recommended to store the credentials only as environment variables
-        There are 4 ways username and password is passed onto the object
-        1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
-        2. You can authentivcate using Humanfirst CLI and it will set the CLI specific environment variables for you.
-        3. A .env file be placed in the root directory of the project.
-        4. username and password can be used while instantiating the object.
+        There are 2 ways of authentication
+        1. Using HumanFirst API Key
+        2. Using Firebase (HumanFirst username and password)
+        
+        1. Using HumanFirst API Key
+            This is the recommended authentication
+            Steps to get API key - TODO: get prod link https://api-keys.humanfirst-docs.pages.dev/docs/api/
+            There are 3 ways api key is passed onto the object
+            1.1. HF_API_KEY can be set as environment variables
+                1.1.1. Using CLI
+                1.1.2. A .env file be placed in the root directory of the project.
+            1.2. api_key can be passed while instantiating the object.
+        2. Using Firebase (HumanFirst username and password)
+            There are 4 ways username and password is passed onto the object
+            2.1. HF_USERNAME and HF_PASSWORD can be set as environment variables.
+                2.1.1. Using CLI
+                2.1.2. A .env file be placed in the root directory of the project.
+            2.2. username and password can be passed while instantiating the object.
+            
+        min_expires_in_seconds can be used to set how long on the token is expected to remain
+        it defaults to 1800s which is half the total expiry window 3600
         """
 
         dotenv_path = find_dotenv(usecwd=True)
@@ -211,7 +244,7 @@ class HFAPI:
             environment = os.environ.get("HF_ENVIRONMENT")
             if environment is None:
                 environment = "prod"
-            self.studio_environment = environment
+        self.studio_environment = environment
 
         if api_version == "":
             # this automatically checks if the environment variable is available in CLI first
@@ -219,7 +252,7 @@ class HFAPI:
             api_version = os.environ.get("HF_API_VERSION")
             if api_version is None:
                 api_version = "v1alpha1"
-            self.api_version = api_version
+        self.api_version = api_version
 
         self.timeout = timeout
 
@@ -245,18 +278,33 @@ class HFAPI:
         elif self.studio_environment == "pre_prod":
             self.base_url = BASE_URL_PRE_PROD
             self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
+        elif self.studio_environment == "local":
+            self.base_url = BASE_URL_LOCAL
+            self.identity_api_key = PRE_PROD_SIGN_IN_API_KEY
         else:
             raise HFEnvironmentException(
-                "HF_ENVIRONMENT is not set to one of the following - prod, staging, qa, pre_prod")
+                "HF_ENVIRONMENT is not set to one of the following - prod, test, staging, qa, pre_prod or local")
 
         # Check if URL ends with /
         if self.base_url[-1] == "/":
             self.base_url = self.base_url[:-1]
 
-        self.auth = Authorization(username=username,
-                                  password=password,
-                                  environment=self.studio_environment,
-                                  timeout=self.timeout)
+        if api_key == "":
+            # this automatically checks if the api_key variable is available in CLI first
+            # and then checks the .env varaiables
+            api_key = os.environ.get("HF_API_KEY")
+            if api_key is None:
+                logger.info("Authentication is available using HumanFirst API key in env variable HF_API_KEY")
+                # TODO: link to docs for how to use
+                self.auth_type = FIREBASE
+                self.firebase_auth = Authorization(username=username,
+                                                  password=password,
+                                                  environment=self.studio_environment,
+                                                  min_expires_in_seconds=min_expires_in_seconds,
+                                                  timeout=self.timeout)
+            else:
+                self.auth_type = API_KEY
+                self.api_key = api_key
 
     def _validate_response(self,
                            response: requests.Response,
@@ -313,11 +361,7 @@ class HFAPI:
 
     def get_tags(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Returns tags'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
-
+        payload = {}
         headers = self._get_headers()
 
         url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook}/tags'
@@ -393,16 +437,42 @@ class HFAPI:
             "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, "playbooks")
 
-    def list_playbooks(self, namespace: str, timeout: float = None) -> dict:
+    # version with workspaces
+    def list_playbooks_old(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
         '''Returns list of all playbooks for an organisation
-        Note namepsace parameter doesn't appear to provide filtering'''
+        Note namepsace parameter doesn't appear to provide filtering
+        
+        If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
+        '''
+        
         payload = {
             "namespace": namespace
         }
 
         headers = self._get_headers()
 
-        url = f'{self.base_url}/{self.api_version}/workspaces/{namespace}'
+        query_params = f"namespace={namespace}&conversation_set_id={conversation_set_id}"
+
+        url = f'{self.base_url}/{self.api_version}/workspaces/humanfirst?{query_params}'
+        effective_timeout = timeout if timeout is not None else self.timeout
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response, url, "playbooks")
+
+    # as originally in PR - with playbooks
+    def list_playbooks(self, namespace: str, conversation_set_id: str = "", timeout: float = None) -> dict:
+        '''Returns list of all playbooks for an organisation
+        Note namepsace parameter doesn't appear to provide filtering
+        
+        If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
+        '''
+        payload = {}
+
+        headers = self._get_headers()
+
+        query_params = f"namespace={namespace}&conversation_set_id={conversation_set_id}"
+
+        url = f'{self.base_url}/{self.api_version}/playbooks?{query_params}'
         effective_timeout = timeout if timeout is not None else self.timeout
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
@@ -493,10 +563,7 @@ class HFAPI:
 
     def get_intents(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get all the intents in a workspace'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -509,10 +576,7 @@ class HFAPI:
 
     def get_intent(self, namespace: str, playbook: str, intent_id: str, timeout: float = None) -> dict:
         '''Get the metdata for the intent needed'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -525,10 +589,7 @@ class HFAPI:
 
     def get_revisions(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get revisions for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -740,10 +801,7 @@ class HFAPI:
 
     def get_nlu_engines(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get nlu engines for the for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -756,11 +814,7 @@ class HFAPI:
 
     def get_nlu_engine(self, namespace: str, playbook: str, nlu_id: str, timeout: float = None) -> dict:
         '''Get nlu engine for the for the namespace and playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "nlu_id": nlu_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -772,10 +826,7 @@ class HFAPI:
 
     def list_trained_nlu(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''Get trained run ids for the playbook, then will have to filter by the nlu_engine interested in'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -949,14 +1000,7 @@ class HFAPI:
         DATA_TYPE_GENERATED = 3
         '''
 
-        payload = {
-            "namespace": namespace,
-            "playbook": playbook,
-            "confidence_threshold": confidence_threshold,
-            "coverage_type": coverage_type,
-            "data_selection": data_selection
-        }
-
+        payload = {}
         if model_id:
             payload["model_id"] = model_id
 
@@ -983,11 +1027,17 @@ class HFAPI:
     def  _get_headers(self) -> dict:
         """Produce the necessary header"""
 
-        # validate the token
-        self.auth.validate_jwt()
+        if self.auth_type == FIREBASE:
+            # validate the token
+            self.firebase_auth.validate_jwt()
+            bearer_string = f'Bearer {self.firebase_auth.bearer_token_dict["token"]}'
+        elif self.auth_type == API_KEY:
+            logger.debug(f'Using passed bearer string')
+            bearer_string = f'Bearer {self.api_key}'
+        else:
+            raise HFAPIAuthenticationTypeException("Authentication type is neither firebase not api_key")
 
         headers = {}
-        bearer_string = f'Bearer {self.auth.bearer_token_dict["token"]}'
         headers = {
             'Content-Type': 'application/json; charset=utf-8',
             'Accept': 'application/json',
@@ -1001,13 +1051,18 @@ class HFAPI:
     # Conversation sets
     # *****************************************************************************************************************
 
-    def get_conversation_set_list(self, namespace: str, timeout: float = None) -> tuple:
-        """Get all the conversation sets for a namespace"""
-        payload = {}
+    def get_conversation_set_list(self,
+                                  namespace: str,
+                                  conversation_source_id: str = "",
+                                  timeout: float = None) -> tuple:
+        """Get all the conversation sets and their info for a namespaces"""
 
+        payload = {}
         headers = self._get_headers()
 
-        url = f"{self.base_url}/{self.api_version}/conversation_sets?namespace={namespace}"
+        query_params = f"namespace={namespace}&conversation_source_id={conversation_source_id}"
+
+        url = f"{self.base_url}/{self.api_version}/conversation_sets?{query_params}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
 
@@ -1034,13 +1089,15 @@ class HFAPI:
         TODO: check after release no-one is still using and delete
         """
 
-        # Make the simple call.        
-        conversation_sets = self.get_conversation_set_list(namespace=namespace)
+        # Make the simple call
+        conversation_sets = self.get_conversation_set_list(namespace=namespace, timeout=timeout)
 
         # Enrich with the additional information by calling to get each's information 
         conversation_set_list = []
         for conversation_set in conversation_sets:
-            conversation_set = self.get_conversation_set(namespace=namespace, conversation_set_id=conversation_set['id'])
+            conversation_set = self.get_conversation_set(namespace=namespace,
+                                                         conversation_set_id=conversation_set['id'],
+                                                         timeout=timeout)
 
             # carry over the legacy logic
             if "state" in conversation_set.keys():
@@ -1070,10 +1127,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        payload = {
-            "namespace":namespace,
-            "conversation_set_id":conversation_set_id
-        }
+        payload = {}
         url = f"{self.base_url}/{self.api_version}/conversation_sets/{namespace}/{conversation_set_id}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
@@ -1241,10 +1295,7 @@ class HFAPI:
     def get_conversation_set_configuration(self, namespace: str, convoset_id: str, timeout: float = None) -> dict:
         """Gets conversation set configuration"""
 
-        payload = {
-            "namespace": namespace,
-            "id": convoset_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1261,10 +1312,7 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        payload = {
-            "namespace":namespace,
-            "conversation_set_id":conversation_set_src_id
-        }
+        payload = {}
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
@@ -1287,24 +1335,15 @@ class HFAPI:
 
         headers = self._get_headers()
 
-        # check no trigger        
-        if no_trigger:
-            str_no_trigger = "true"
-        else:
-            str_no_trigger = "false"
-
         payload = {
             "namespace":namespace,
             "no_trigger": no_trigger, # TODO: debugging this should it be a string or a boolean?  json.dumps will change True to true, no quotes
             "filename": file_name,
             "conversation_source_id":conversation_set_src_id
         }
-        print(payload)
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_set_src_id}/{file_name}"
 
         effective_timeout = timeout if timeout is not None else self.timeout
-        
-        print(json.dumps(payload))
 
         response = requests.request(
             "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
@@ -1679,9 +1718,7 @@ class HFAPI:
 
     def get_integrations(self, namespace: str, timeout: float = None):
         '''Returns all the integrations configured for a namespace'''
-        payload = {
-            "namespace": namespace
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1698,10 +1735,7 @@ class HFAPI:
         i.e call the integration in HF to detect in the integrated NLU
         what target/source workspaces there are.
         i.e in DF case find out what agents there are to import data from'''
-        payload = {
-            "namespace": namespace,
-            "integration_id":integration_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1793,10 +1827,7 @@ class HFAPI:
 
     def get_evaluation_presets(self, namespace: str, playbook: str, timeout: float = None):
         '''Get the presets to find the evaluation_preset_id to run an evaluation'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1839,11 +1870,7 @@ class HFAPI:
 
     def get_evaluation_report(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation report as zip'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1860,11 +1887,7 @@ class HFAPI:
 
     def get_evaluation_summary(self, namespace: str, playbook: str, evaluation_id: str, timeout: float = None) -> dict:
         '''Get the evaluation summary as json'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1881,10 +1904,7 @@ class HFAPI:
 
     def list_evaluations(self, namespace: str, playbook: str, timeout: float = None) -> dict:
         '''List all evaluations in the given playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1906,12 +1926,7 @@ class HFAPI:
                            intent_id: str,
                            timeout: float = None) -> dict:
         '''Get a list of training phrases that were evaluated'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook,
-            "evaluation_id": evaluation_id,
-            "intent_id": intent_id
-        }
+        payload = {}
 
         headers = self._get_headers()
 
@@ -1965,10 +1980,7 @@ class HFAPI:
 
     def describe_trigger(self, namespace: str, trigger_id: str, timeout: float = None):
         """Describe Trigger"""
-        payload = {
-            "namespace": namespace,
-            "trigger_id": trigger_id
-        }
+        payload = {}
 
         headers = self._get_headers()
         url = f'{self.base_url}/{self.api_version}/triggers/{namespace}/{trigger_id}'
@@ -2007,10 +2019,7 @@ class HFAPI:
                                 playbook_id: str,
                                 timeout: float = None) -> dict:
         '''List pipelines for a playbook'''
-        payload = {
-            "namespace": namespace,
-            "playbook_id": playbook_id,
-        }
+        payload = ()
 
         headers = self._get_headers()
         base_url = f'{self.base_url}/{self.api_version}/playbooks'
@@ -2022,7 +2031,7 @@ class HFAPI:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")
-    
+
     def loop_trigger_check(self,
                             namespace: str,
                             trigger_id: str,
@@ -2049,7 +2058,7 @@ class HFAPI:
         
         Between each loop it waits the amount of time last waited times the exponential_factor for an exponential backoff option.
         By default this is 1 so it will wait the same amount of time each loop, set it to 2 for instance to wait twice as long each loop.
-        
+
         Default wait is 1 second, expontential off, max default loops is 240 with an api timeout of 120s - so it will wait at least 4 minutes
         Plus any API call time.
         
@@ -2062,17 +2071,17 @@ class HFAPI:
             # wait if not the first loop
             if loops > 0:
                 time.sleep(wait)
-            
+
             # Call the api
             trigger_response = self.describe_trigger(namespace=namespace,trigger_id=trigger_id,timeout=timeout)
-            
-            # produce a summary 
+
+            # produce a summary
             summary = {
                 "triggerId": trigger_response["triggerState"]["trigger"]["triggerId"],
                 "message": trigger_response["triggerState"]["trigger"]["message"],
                 "status": trigger_response["triggerState"]["status"]
             }
-            
+
             # enhance that with more information.
             if "progress" in trigger_response.keys():
                 summary["total"] = trigger_response["triggerState"]["progress"]["total"],
@@ -2081,19 +2090,19 @@ class HFAPI:
 
             # increment counter
             loops = loops + 1
-            
+
             # increase the wait if necessary
             wait = wait * exponential_factor
 
             # Calculate total time to date and add it to summary
             summary["duration"] = round(time.perf_counter() - start,2)
-            
-            # success        
+
+            # success
             if summary["status"] == TRIGGER_STATUS_COMPLETED:
                 logger.info('%s', summary)
                 done = True
                 break
-            
+
             # failure or cancelled
             if summary["status"] in [TRIGGER_STATUS_UNKNOWN,TRIGGER_STATUS_CANCELLED,TRIGGER_STATUS_FAILED]:
                 logger.error('%s', summary)
@@ -2101,11 +2110,11 @@ class HFAPI:
 
             # Log at info if waiting
             logger.info('%s', summary)
-            
-            # timed out 
+
+            # timed out
             if loops > max_loops:
                 break
-                    
+
         if done:
             return int(math.ceil(summary["duration"]))
         else:
