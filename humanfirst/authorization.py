@@ -468,7 +468,9 @@ class Authorization:
                         if not self.bearer_token_dict["token"]:
                             logger.error("Failed to refresh the token. No new ID token received.")
                             time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
-                        refresh_attempts = refresh_attempts + 1
+                            # only need another attempt and continue if we didn't get the token pre-emptively refreshed
+                            refresh_attempts = refresh_attempts + 1
+                            continue
                         # refreshed the token
                         return
                     else:
