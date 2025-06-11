@@ -17,6 +17,9 @@ import logging
 import logging.config
 import time # pylint: disable=unused-import
 import math
+import io
+import gzip
+import csv
 
 from typing import Optional, List, Dict, Any
 
@@ -1388,7 +1391,6 @@ class HFAPI:
         payload = {}
 
         headers = self._get_headers()
-        print(headers)
 
         url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts"
 
@@ -1789,9 +1791,10 @@ class HFAPI:
                                                 no_trigger: bool = False) -> dict:
         '''Upload a JSON file to a conversation source
         no_trigger=True prevents indexes from building if passed in case you want to delete
-        or upload additional files before triggering them.  If you use this you must 
+        or upload additional files before triggering them. If you use this you must 
         upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
         your conversation set will not be available to other processes.'''
+
         payload = {
             "namespace": namespace
         }
@@ -1800,10 +1803,29 @@ class HFAPI:
 
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
 
-        # file_in = open(fqfp,mode="r",encoding="utf8")
-        # json.load(file_in)
-        # file_in.close()
-        upload_file = open(fqfp, 'rb')
+        # Read raw file bytes
+        with open(fqfp, 'rb') as f:
+            raw = f.read()
+
+        # Gzip if not already
+        lower = fqfp.lower()
+        if lower.endswith('.gz') or lower.endswith('.json.gz'):
+            gzipped_bytes = raw
+        else:
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+                gz.write(raw)
+            gzipped_bytes = buf.getvalue()
+
+        # Normalize upload filename to .json.gz
+        base, ext = os.path.splitext(upload_name)
+        if ext.lower() in ('.gz', '.json.gz'):
+            fname = upload_name
+        elif ext.lower() == '.json':
+            fname = f"{base}.json.gz"
+        else:
+            fname = f"{upload_name}.json.gz"
+
         if no_trigger:
             str_no_trigger = "true"
         else:
@@ -1816,7 +1838,209 @@ class HFAPI:
             # in the toolbelt multipart encoder but this seems effective during testing
             # if I remember correctly this is present where the values are subobjects,
             # but this is top level so seems OK?
-            'file': (upload_name, upload_file, 'application/json')}
+            'file': (fname, io.BytesIO(gzipped_bytes), 'application/gzip')}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
+
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_csv_file_to_conversation_source(self,
+                                                namespace: str,
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str,
+                                                *,
+                                                header_included: bool = True,
+                                                import_as_utterances: bool = False,
+                                                id_column: int = None,
+                                                date_column: int = None,
+                                                date_format: str = 'UNIX_TIMESTAMP_MS',
+                                                source_column: int = None,
+                                                client_name: str = '',
+                                                agent_name: str = '',
+                                                text_column: int = 0,
+                                                metadata_columns: list[int] = None,
+                                                delimiter: str = ',',
+                                                timeout: float = None,
+                                                no_trigger: bool = False) -> dict:
+        '''Upload a CSV file to a conversation source
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them. If you use this you must 
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes.
+        
+        Date Format Options (for `date_format` in IMPORT_FORMAT_SIMPLE_CSV):
+        • UNIX_TIMESTAMP_MS          - 0 - Milliseconds since the Unix epoch.
+        • UNIX_TIMESTAMP_SEC         - 1 - Seconds since the Unix epoch.
+        • DATE_TIME_YEAR_FIRST       - 2 - “YYYY-MM-DD” style date strings.
+        • DATE_TIME_MONTH_FIRST      - 3 - “MM-DD-YYYY” style date strings.
+        • DATE_TIME_SLASH_MONTH_FIRST- 4 - “MM/DD/YYYY” style date strings.
+        • RFC3339                    - 5 - Full RFC3339 timestamp strings
+                                        (e.g. “2025-06-11T14:23:00Z”).
+                
+        
+        Supports both gzipped and non-gziped CSV files.
+        '''
+
+        timestamp_dict = {
+            'UNIX_TIMESTAMP_MS': 0,
+            'UNIX_TIMESTAMP_SEC': 1,
+            'DATE_TIME_YEAR_FIRST': 2,
+            'DATE_TIME_MONTH_FIRST': 3,
+            'DATE_TIME_SLASH_MONTH_FIRST': 4,
+            'RFC3339': 5
+        }
+
+        # Read the input file bytes and determine if it's already gzipped
+        with open(fqfp, 'rb') as f:
+            raw = f.read()
+
+        if fqfp.lower().endswith('.gz'):
+            # already gzipped
+            gzipped_bytes = raw
+            # decompress to get CSV text for header parsing
+            with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
+                csv_bytes = gz.read()
+        else:
+            # plain CSV: keep raw for header parsing, and gzip it for upload
+            csv_bytes = raw
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+                gz.write(raw)
+            gzipped_bytes = buf.getvalue()
+
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
+
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
+
+        # Auto-derive metadata_columns if not provided
+        if metadata_columns is None:
+            # read just the first line
+            header_line = csv_bytes.split(b'\n', 1)[0].decode('utf-8')
+            cols = header_line.split(delimiter)
+            used = {
+                idx for idx in (
+                    id_column, date_column, source_column, text_column
+                ) if isinstance(idx, int)
+            }
+            metadata_columns = [
+                i for i in range(len(cols)) if i not in used
+            ]
+
+        # 3) Build the column_mapper_options dict
+        if import_as_utterances:
+            column_mapper_options = {
+                "header_included": header_included,
+                "import_as_utterances": True,
+                "text_column": text_column,
+                "id_column": None,
+                "date_column": None,
+                "date_format": timestamp_dict[date_format],
+                "source_column": None,
+                "client_name": "",
+                "agent_name": "",
+                "tag_columns": [],
+                "tag_list_column": None,
+                "metadata_columns": [{"index": i} for i in metadata_columns],
+                "delimiter": delimiter
+            }
+        else:
+            column_mapper_options = {
+                "header_included": header_included,
+                "import_as_utterances": False,
+                "id_column": {"value": id_column} if id_column is not None else None,
+                "date_column": {"value": date_column} if date_column is not None else None,
+                "date_format": timestamp_dict[date_format],
+                "source_column": {"value": source_column} if source_column is not None else None,
+                "client_name": client_name,
+                "agent_name": agent_name,
+                "text_column": text_column if text_column is not None else None,
+                "tag_columns": [],
+                "tag_list_column": None,
+                "metadata_columns": [{"index": i} for i in metadata_columns],
+                "delimiter": delimiter
+            }
+
+        # 4) Normalize filename to .csv.gz
+        base, ext = os.path.splitext(upload_name)
+        if ext.lower() in ['.gz', '.csv.gz']:
+            fname = upload_name
+        elif ext.lower() == '.csv':
+            fname = f"{base}.csv.gz"
+        else:
+            fname = f"{upload_name}.csv.gz"
+
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_SIMPLE_CSV',
+            'no_trigger': str_no_trigger,
+            # seem to remember there is a problem with encoding multiple fields in the 
+            # toolbelt multipart encoder but this seems effective during testing
+            # this is present where the values are subobjects, but this is top level so seems OK?
+            'file': (fname, io.BytesIO(gzipped_bytes), 'application/gzip'),
+            "column_mapper_options": json.dumps(column_mapper_options)}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_doc_file_to_conversation_source(self, namespace: str,
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str,
+                                                timeout: float = None,
+                                                no_trigger: bool = False) -> dict:
+        '''Upload a document file to a conversation source
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them. If you use this you must 
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes.
+        
+        Does not support Gzipped data
+        '''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
+
+        upload_file = open(fqfp, 'rb')
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_DOCUMENT',
+            'no_trigger': str_no_trigger, 
+            # seem to remember there is a problem with encoding multiple fields in the 
+            # toolbelt multipart encoder but this seems effective during testing
+            # this is present where the values are subobjects, but this is top level so seems OK?
+            'file': (upload_name, upload_file)}
         )
         # This is the magic bit - you must set the content type to include the boundary information
         # multipart encoder makes working these out easier
