@@ -1413,7 +1413,7 @@ class HFAPI:
 
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
-        return self._validate_response(response=response, url=url)\
+        return self._validate_response(response=response, url=url)
 
     def delete_prompt(self,
                     namespace:str,
