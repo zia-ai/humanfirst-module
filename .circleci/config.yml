@@ -45,13 +45,14 @@ jobs:
       - run: 
           name: dependencies
           command: |
+            export DEBIAN_FRONTEND=noninteractive
             sudo apt update
             sudo apt install -y docker
-            sudo apt-get install systemd-timesyncd -y
+            sudo apt-get install -y systemd-timesyncd
             sudo systemctl enable systemd-timesyncd
             sudo systemctl start systemd-timesyncd
-            sudo apt-get install ntpdate -y
-            sudo apt-get install net-tools -y
+            sudo apt-get install -y ntpdate
+            sudo apt-get install -y net-tools
             mkdir -p aio-logs
       - gcp-cli/setup:
           use_oidc: true
