@@ -272,8 +272,8 @@ class Authorization:
         authorisation
         """
         url = f'{self.base_url}/v1alpha1/config/environment'
-        
-        # this end point doesn't require authorisation 
+
+        # this end point doesn't require authorisation
         # as it provides the config for authorisation so unique headers
         payload = {}
         headers = {
@@ -283,15 +283,15 @@ class Authorization:
         response = requests.request(
             "GET", url, headers=headers, data=json.dumps(payload))
         if response.status_code != 200 and response.status_code != 201:
-            raise RuntimeError(f'Couldn\'t verify config from: {url}')       
+            raise RuntimeError(f'Couldn\'t verify config from: {url}')
         cfg = response.json()
-        
+
         # Previously these were all just stored locally so validating the local value against the API rather than just
         # taking from the API.
         logger.debug(cfg)
         if cfg["firebase"]["apiKey"] != self.identity_api_key:
             raise RuntimeError(f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["firebase"]["apiKey"]}')
-        
+
         # some environments may need a tennant id
         self.tenant_id = None
         if "firebase" in cfg:
@@ -323,12 +323,12 @@ class Authorization:
             "password": password,
             "returnSecureToken": True
         }
-        
+
         # If we have a tennant ID add it to the auth body
         if self.tenant_id:
             logger.info(f'tenantId: {self.tenant_id}')
             auth_body["tenantId"] = self.tenant_id
-            
+
         effective_timeout = timeout if timeout is not None else self.timeout
         auth_response = requests.request(
             "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
@@ -339,13 +339,13 @@ class Authorization:
 
         # Previously this was where there was a wait duration was used to allow for virualisation/internet clock drift
         # this is now handled by decoding the JWT token and allowing the inbuilt PyJWT Leeway functions on both
-        # SDK and product side.  If you encounter "token used before issued" issues it is normally to do with some aspect
-        # of internet deployment or virtualisation and clock drift.  Turn on DEBUG level logging to get full detailed
-        # information of the internal token times to be able to resolve where the issue lies.
+        # SDK and product side.  If you encounter "token used before issued" issues it is normally to do with some
+        # aspect of internet deployment or virtualisation and clock drift.  Turn on DEBUG level logging to get full
+        # detailed information of the internal token times to be able to resolve where the issue lies.
 
         self.bearer_token_dict["token"] = auth_response.json().get("idToken")
         self.bearer_token_dict["refresh_token"] = auth_response.json().get("refreshToken")
-        
+
         # Now validate the JWT token
         if self.bearer_token_dict["token"]:
             self.validate_jwt()
