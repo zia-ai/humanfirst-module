@@ -74,7 +74,7 @@ path_to_log_config_file = os.path.join(here,'config','logging.conf')
 current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 # Create the log file name with the current datetime
-log_filename = f"log_{current_datetime}.log"
+log_filename = f"log_{current_datetime}.log" # pylint:disable=invalid-name
 
 # Decide whether to save logs in a file or not
 log_file_enable = os.environ.get("HF_LOG_FILE_ENABLE")
@@ -173,7 +173,7 @@ class Authorization:
     audience: str
     identity_api_key: str
 
-    def __init__(self, 
+    def __init__(self,
                  username: str = "",
                  password: str = "",
                  environment: str = "",
@@ -222,8 +222,8 @@ class Authorization:
             self.audience = TEST_AUDIENCE
             self.identity_api_key = TEST_SIGN_IN_API_KEY
             self.base_url = os.getenv("BASE_URL_TEST",None)
-            if self.base_url == None:
-                raise RuntimeError(f'If using test environment must provide BASE_URL_TEST to call as an env variable')
+            if self.base_url == None: # pylint:disable=singleton-comparison
+                raise RuntimeError('If using test environment must provide BASE_URL_TEST to call as an env variable')
         elif environment == "staging":
             self.audience = STAGING_AUDIENCE
             self.identity_api_key = STAGING_SIGN_IN_API_KEY
@@ -251,11 +251,11 @@ class Authorization:
             "client_time": "",
             "environment": environment
         }
-        
+
         self.min_expires_in_seconds = min_expires_in_seconds
 
         self.timeout = timeout
-        
+
         self._validate_config()
 
         self._authorize(username=username,
@@ -272,8 +272,8 @@ class Authorization:
         authorisation
         """
         url = f'{self.base_url}/v1alpha1/config/environment'
-        
-        # this end point doesn't require authorisation 
+
+        # this end point doesn't require authorisation
         # as it provides the config for authorisation so unique headers
         payload = {}
         headers = {
@@ -281,31 +281,33 @@ class Authorization:
             'Accept': 'application/json'
         }
         response = requests.request(
-            "GET", url, headers=headers, data=json.dumps(payload))
+            "GET", url, headers=headers, data=json.dumps(payload)) # pylint: disable=missing-timeout
         if response.status_code != 200 and response.status_code != 201:
-            raise RuntimeError(f'Couldn\'t verify config from: {url}')       
+            raise RuntimeError(f'Couldn\'t verify config from: {url}')
         cfg = response.json()
-        
+
         # Previously these were all just stored locally so validating the local value against the API rather than just
         # taking from the API.
         logger.debug(cfg)
         if cfg["firebase"]["apiKey"] != self.identity_api_key:
-            raise RuntimeError(f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["firebase"]["apiKey"]}')
-        
+            err_msg = f'cfg file provides: {self.identity_api_key} but config URL returns {cfg["firebase"]["apiKey"]}'
+            raise RuntimeError(err_msg)
+
         # some environments may need a tennant id
         self.tenant_id = None
         if "firebase" in cfg:
             if "defaultTenantId" in cfg["firebase"]:
                 self.tenant_id = cfg["firebase"]["defaultTenantId"]
-        
+
         # if we have an audience in the config validate it against the config values
         if "firebase" in cfg:
             if "audience" in cfg["firebase"]:
                 if self.audience != cfg["firebase"]["audience"]:
-                    raise RuntimeError(f'Audience in cfg file: {self.audience} doesn\'t match api config: {cfg["firebase"]["audience"]}')
+                    err_msg = f'Audience in cfg file: {self.audience} doesn\'t match api config: {cfg["firebase"]["audience"]}' # pylint:disable=line-too-long
+                    raise RuntimeError(err_msg)
 
-    def _authorize(self, 
-                   username: str, 
+    def _authorize(self,
+                   username: str,
                    password: str,
                    timeout: float = None) -> dict:
         '''Get bearer token for a username and password
@@ -323,12 +325,12 @@ class Authorization:
             "password": password,
             "returnSecureToken": True
         }
-        
+
         # If we have a tennant ID add it to the auth body
         if self.tenant_id:
-            logger.info(f'tenantId: {self.tenant_id}')
+            logger.info('tenantId: %s ', self.tenant_id)
             auth_body["tenantId"] = self.tenant_id
-            
+
         effective_timeout = timeout if timeout is not None else self.timeout
         auth_response = requests.request(
             "POST", auth_url, headers=headers, data=json.dumps(auth_body), timeout=effective_timeout)
@@ -339,13 +341,13 @@ class Authorization:
 
         # Previously this was where there was a wait duration was used to allow for virualisation/internet clock drift
         # this is now handled by decoding the JWT token and allowing the inbuilt PyJWT Leeway functions on both
-        # SDK and product side.  If you encounter "token used before issued" issues it is normally to do with some aspect
-        # of internet deployment or virtualisation and clock drift.  Turn on DEBUG level logging to get full detailed
-        # information of the internal token times to be able to resolve where the issue lies.
+        # SDK and product side.  If you encounter "token used before issued" issues it is normally to do with some
+        # aspect of internet deployment or virtualisation and clock drift.  Turn on DEBUG level logging to get full
+        # detailed information of the internal token times to be able to resolve where the issue lies.
 
         self.bearer_token_dict["token"] = auth_response.json().get("idToken")
         self.bearer_token_dict["refresh_token"] = auth_response.json().get("refreshToken")
-        
+
         # Now validate the JWT token
         if self.bearer_token_dict["token"]:
             self.validate_jwt()
@@ -383,7 +385,7 @@ class Authorization:
         }
         return headers
 
-    def validate_jwt(self, 
+    def validate_jwt(self,
                      timeout: float = None) -> dict:
         """Validate the JWT token using Google's public keys"""
 
@@ -448,20 +450,25 @@ class Authorization:
 
                     # Token is valid
                     logger.debug("Valid Token: %s", decoded_token)
-                    
+
                     # The timestamp is in unix format -  convert unix to utc format
-                    decoded_token_iat = datetime.fromtimestamp(decoded_token['iat'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-                    decoded_token_exp = datetime.fromtimestamp(decoded_token['exp'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                    decoded_token_iat = datetime.fromtimestamp(
+                        decoded_token['iat'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                    decoded_token_exp = datetime.fromtimestamp(
+                        decoded_token['exp'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
                     # Extract the expiration time from the JWT token
                     self.bearer_token_dict["decoded_token"] = decoded_token
 
                     # Calculate the difference between current time and expiration time in Unix timestamp
                     time_diff = self.bearer_token_dict["client_time"] - self.bearer_token_dict["decoded_token"]["iat"]
-                    
+
                     # Determine if want to pre-emptively refresh token
-                    if (HUMANFIRST_TOKEN_TTL_SECONDS-time_diff) <= self.min_expires_in_seconds: 
-                        logger.info(f"Pre-emptively refresh token at client_time: {decoded_token_iat} as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} less than min: {self.min_expires_in_seconds} for expiry time {decoded_token_exp} ")
+                    if (HUMANFIRST_TOKEN_TTL_SECONDS-time_diff) <= self.min_expires_in_seconds:
+                        logger.info(
+                            "Pre-emptively refresh token at client_time: %s as seconds to expiry: %s less than min: %s for expiry time %s", # pylint:disable=line-too-long
+                            decoded_token_iat, HUMANFIRST_TOKEN_TTL_SECONDS - time_diff, self.min_expires_in_seconds, decoded_token_exp # pylint:disable=line-too-long
+                        )
                         refresh_response = self._refresh_token(self.bearer_token_dict["refresh_token"])
                         self.bearer_token_dict["token"] = refresh_response.get("id_token")
                         self.bearer_token_dict["refresh_token"] = refresh_response.get("refresh_token")
@@ -474,9 +481,10 @@ class Authorization:
                         # refreshed the token
                         return
                     else:
-                        logger.debug(f"Didn't refresh token as seconds to expiry: {HUMANFIRST_TOKEN_TTL_SECONDS-time_diff} > than min: {self.min_expires_in_seconds} client_time: {decoded_token_iat} expiry_time: {decoded_token_exp}")
-                        
-                    
+                        logger.debug("Didn't refresh token as seconds to expiry: %s > than min: %s client_time: %s expiry_time: %s", # pylint:disable=line-too-long
+                                     HUMANFIRST_TOKEN_TTL_SECONDS - time_diff, self.min_expires_in_seconds, decoded_token_iat, decoded_token_exp) # pylint:disable=line-too-long
+
+
                     # So we had a valid token and didn't need to refresh it
                     return
 
@@ -494,25 +502,24 @@ class Authorization:
                         time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
                     refresh_attempts = refresh_attempts + 1
                     continue
-                
+
                 # In the case that the token can't be decoded.
                 except DecodeError:
                     logger.error("DecodeError failed to decode token")
                     raise
-                
-                # In the case 
+
+                # In the case
                 except InvalidTokenError as e:
                     logger.info("Token validation error: %s",str(e))
                     if validation_attempts >= 5:
                         logger.error("Validation attempts exceeded 5 or more times")
                         raise
-                    logger.info(f"Validation attempt: {validation_attempts} validating again after a wait of: {TOKEN_REVALIDATE_WAIT_TIME}")
+                    logger.info("Validation attempt: %s validating again after a wait of: %s", validation_attempts, TOKEN_REVALIDATE_WAIT_TIME) # pylint:disable=line-too-long
                     time.sleep(TOKEN_REVALIDATE_WAIT_TIME)
                     validation_attempts = validation_attempts + 1
                     continue
-                
+
                 # So token here is valid and decoded
         except requests.exceptions.RequestException as e:
             logger.error("An error occurred while retrieving Google's public keys: %s",str(e))
             raise
-

@@ -15,14 +15,20 @@ import os
 from configparser import ConfigParser
 import logging
 import logging.config
-import warnings
 import time # pylint: disable=unused-import
 import math
+import io
+import gzip
+import csv
+
+from typing import Optional, List, Dict, Any
 
 # third party imports
 import requests
 import requests_toolbelt
 from dotenv import load_dotenv, find_dotenv
+from google.protobuf.field_mask_pb2 import FieldMask # pylint: disable=no-name-in-module
+from google.protobuf.json_format import MessageToDict
 
 # custom imports
 from .authorization import Authorization
@@ -444,7 +450,7 @@ class HFAPI:
         
         If conversation_set_id is provided, it retuns only those playbooks linked to the conversation_set_id
         '''
-        
+
         payload = {
             "namespace": namespace
         }
@@ -1032,7 +1038,7 @@ class HFAPI:
             self.firebase_auth.validate_jwt()
             bearer_string = f'Bearer {self.firebase_auth.bearer_token_dict["token"]}'
         elif self.auth_type == API_KEY:
-            logger.debug(f'Using passed bearer string')
+            logger.debug('Using passed bearer string')
             bearer_string = f'Bearer {self.api_key}'
         else:
             raise HFAPIAuthenticationTypeException("Authentication type is neither firebase not api_key")
@@ -1068,7 +1074,7 @@ class HFAPI:
 
         response = requests.request(
             "GET", url, headers=headers, data=payload, timeout=effective_timeout)
-        
+
         return self._validate_response(response=response,url=url,field='conversationSets')
 
     def get_conversation_set_deep_report(self, namespace: str, timeout: float = None) -> tuple:
@@ -1092,7 +1098,7 @@ class HFAPI:
         # Make the simple call
         conversation_sets = self.get_conversation_set_list(namespace=namespace, timeout=timeout)
 
-        # Enrich with the additional information by calling to get each's information 
+        # Enrich with the additional information by calling to get each's information
         conversation_set_list = []
         for conversation_set in conversation_sets:
             conversation_set = self.get_conversation_set(namespace=namespace,
@@ -1337,7 +1343,8 @@ class HFAPI:
 
         payload = {
             "namespace":namespace,
-            "no_trigger": no_trigger, # TODO: debugging this should it be a string or a boolean?  json.dumps will change True to true, no quotes
+            "no_trigger": no_trigger, 
+            # TODO: debugging this should it be a string or a boolean?  json.dumps will change True to true, no quotes
             "filename": file_name,
             "conversation_source_id":conversation_set_src_id
         }
@@ -1375,6 +1382,382 @@ class HFAPI:
         return self._validate_response(response=response, url=url)
 
     # *****************************************************************************************************************
+    # Prompt
+    # *****************************************************************************************************************
+
+    def list_prompts(self, namespace: str, playbook_id: str, timeout: float = None) -> dict:
+        """Lists all prompts for a given playbook"""
+
+        payload = {}
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response=response, url=url)
+
+    def get_prompt(self, namespace: str, playbook_id: str, prompt_id: str, timeout: float = None) -> dict:
+        """Lists specific prompts from a given playbook"""
+
+        payload = {}
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts/{prompt_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response=response, url=url)
+
+    def delete_prompt(self,
+                    namespace:str,
+                    playbook_id: str,
+                    prompt_id: str,
+                    timeout: float = None):
+        """Deletes a specific prompt within a playbook"""
+
+        headers = self._get_headers()
+
+        payload = {}
+
+        url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts/{prompt_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "DELETE", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response=response,url=url)
+
+    def create_prompt(self, namespace: str,
+                    playbook_id: str,
+                    contents: str,
+                    name: str = "Prompt",
+                    temperature: float = 1.0,
+                    top_p: float = 1.0,
+                    max_tokens: int = 0,
+                    stop_sequences: List[str] = None,
+                    frequency_penalty: float = 0.0,
+                    presence_penalty: float = 0.0,
+                    post_processing: int = 1,
+                    run_mode: int = 0,
+                    parent_id: Optional[str] = None,
+                    position: Optional[int] = None,
+                    metadata: Optional[Dict[str, Any]] = None,
+                    source: Optional[Dict[str, Any]] = None,
+                    post_processing_delimiter: Optional[str] = None,
+                    parameters: Optional[List[Dict[str, Any]]] = None,
+                    nlg_timeout: Optional[str] = None,
+                    timeout: Optional[float] = None) -> dict:
+        """
+        Create a prompt in a playbook.
+
+        Args:
+            namespace (str): Namespace of the playbook.
+            playbook_id (str): ID of the playbook.
+            contents (str): The content of the prompt.
+            name (str, optional): Name of the prompt.
+            temperature (float, optional): Sampling temperature used for randomness in generation.
+            top_p (float, optional): Nucleus sampling—tokens are considered from the top-p cumulative probability mass
+            max_tokens (int, optional): Maximum number of tokens to generate.
+            stop_sequences (List[str], optional): List of strings where the model will stop generating further tokens.
+            frequency_penalty (float,optional):Reduces likelihood of repeating tokens proportionally to their frequency
+            presence_penalty (float, optional): Increases likelihood of introducing new tokens not already present.
+            post_processing (int, optional): Post-processing strategy ID. Controls how the LLM output is transformed.
+                Values:
+                    0 - POSTPROCESSING_DEFAULT:
+                        Use the system's default post-processing (currently equivalent to NONE).
+                    1 - POSTPROCESSING_NONE:
+                        No post-processing applied; raw output is used as-is.
+                    2 - POSTPROCESSING_NEWLINES:
+                        Splits output on newlines. Each line becomes a separate input.
+                    3 - POSTPROCESSING_CONVERSATIONS:
+                        Expects lines like "User: ..." or "Agent: ..." and parses them as conversation turns.
+                    4 - POSTPROCESSING_KEY_VALUE:
+                        Parses "key: value" format into structured inputs with metadata key and content value.
+                    5 - POSTPROCESSING_DELIMITER:
+                        Splits the text using a custom delimiter defined via `post_processing_delimiter`.
+            post_processing_delimiter (str, optional):
+                Custom delimiter used when `post_processing` is set to 5 (DELIMITER).
+            run_mode (int, optional): How the prompt is executed:
+                1 - RUN_ONCE: Run on the entire stash.
+                2 - RUN_EACH_ITEM: Run on each stash item separately (default).
+            parent_id (str, optional): ID of a parent prompt, if this prompt is nested.
+            position (int, optional): Ordering position under the parent prompt or playbook.
+            metadata (dict, optional): Arbitrary metadata associated with the prompt.
+            source (dict, optional): Source information (e.g., if prompt was imported).
+            parameters (List[Dict], optional): List of parameter definitions used by the prompt.
+            nlg_timeout (str, optional):
+                Timeout for generation by the LLM, formatted as ISO 8601 durations (e.g., "3s", "1.5s").
+            timeout (float, optional): Request-level timeout for the HTTP request in seconds.
+
+
+        Returns:
+            dict: API response after validation.
+        """
+
+        if stop_sequences is None:
+            stop_sequences = []
+
+        if name == "Prompt":
+            iso_timestamp = datetime.datetime.now().isoformat(timespec='seconds').replace(":", "-")
+            name = f"{name}_{iso_timestamp}"
+
+        prompt_payload = {
+            "name": name,
+            "contents": contents,
+            "nlg_model_parameters": {
+                "temperature": temperature,
+                "top_p": top_p,
+                "max_tokens": max_tokens,
+                "stop_sequences": stop_sequences,
+                "frequency_penalty": frequency_penalty,
+                "presence_penalty": presence_penalty,
+            },
+            "post_processing": post_processing,
+            "run_mode": run_mode
+        }
+
+        # Optional fields
+        if parent_id:
+            prompt_payload["parent_id"] = parent_id
+        if position is not None:
+            prompt_payload["position"] = position
+        if metadata:
+            prompt_payload["metadata"] = metadata
+        if source:
+            prompt_payload["source"] = source
+        if post_processing_delimiter:
+            prompt_payload["post_processing_delimiter"] = post_processing_delimiter
+        if parameters:
+            prompt_payload["parameters"] = parameters
+        if nlg_timeout:
+            prompt_payload["nlg_timeout"] = nlg_timeout
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "prompt": prompt_payload,
+        }
+
+        if position is not None:
+            payload["position"] = position
+
+        headers = self._get_headers()
+        url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts"
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout
+        )
+        return self._validate_response(response=response, url=url)
+
+    def update_prompt(self, namespace: str,
+                    playbook_id: str,
+                    prompt_id: str,
+                    update_mask: List[str],
+                    contents: Optional[str] = None,
+                    name: Optional[str] = None,
+                    temperature: float = 1.0,
+                    top_p: float = 1.0,
+                    max_tokens: int = 0,
+                    stop_sequences: List[str] = None,
+                    frequency_penalty: float = 0.0,
+                    presence_penalty: float = 0.0,
+                    post_processing: int = 1,
+                    run_mode: int = 0,
+                    parent_id: Optional[str] = None,
+                    position: Optional[int] = None,
+                    metadata: Optional[Dict[str, Any]] = None,
+                    source: Optional[Dict[str, Any]] = None,
+                    post_processing_delimiter: Optional[str] = None,
+                    parameters: Optional[List[Dict[str, Any]]] = None,
+                    nlg_timeout: Optional[str] = None,
+                    timeout: Optional[float] = None) -> dict:
+        """
+        Update a prompt in a playbook.
+
+        Args:
+            namespace (str): Namespace of the playbook.
+            playbook_id (str): ID of the playbook.
+            prompt_id (str): ID of the prompt to update.
+            contents (str): The content of the prompt.
+            name (str, optional): Name of the prompt.
+            temperature (float, optional):
+                Sampling temperature used for randomness in generation.
+            top_p (float, optional):
+                Nucleus sampling—tokens are considered from the top-p cumulative probability mass.
+            max_tokens (int, optional): Maximum number of tokens to generate.
+            stop_sequences (List[str], optional):
+                List of strings where the model will stop generating further tokens.
+            frequency_penalty (float, optional):
+                Reduces likelihood of repeating tokens proportionally to their frequency.
+            presence_penalty (float, optional): Increases likelihood of introducing new tokens not already present.
+            post_processing (int, optional): Post-processing strategy ID. Controls how the LLM output is transformed.
+                Values:
+                    0 - POSTPROCESSING_DEFAULT:
+                        Use the system's default post-processing (currently equivalent to NONE).
+                    1 - POSTPROCESSING_NONE:
+                        No post-processing applied; raw output is used as-is.
+                    2 - POSTPROCESSING_NEWLINES:
+                        Splits output on newlines. Each line becomes a separate input.
+                    3 - POSTPROCESSING_CONVERSATIONS:
+                        Expects lines like "User: ..." or "Agent: ..." and parses them as conversation turns.
+                    4 - POSTPROCESSING_KEY_VALUE:
+                        Parses "key: value" format into structured inputs with metadata key and content value.
+                    5 - POSTPROCESSING_DELIMITER:
+                        Splits the text using a custom delimiter defined via `post_processing_delimiter`.
+            run_mode (int, optional): How the prompt is executed:
+                1 - RUN_ONCE: Run on the entire stash.
+                2 - RUN_EACH_ITEM: Run on each stash item separately (default).
+            parent_id (str, optional): ID of a parent prompt, if this prompt is nested.
+            position (int, optional): Ordering position under the parent prompt or playbook.
+            metadata (dict, optional): Arbitrary metadata associated with the prompt.
+            source (dict, optional): Source information (e.g., if prompt was imported).
+            post_processing_delimiter (str, optional):
+                Custom delimiter used when `post_processing` is set to 5 (DELIMITER).
+            parameters (List[Dict], optional): List of parameter definitions used by the prompt.
+            nlg_timeout (str, optional):
+                Timeout for generation by the LLM, formatted as ISO 8601 durations (e.g., "3s", "1.5s").
+            timeout (float, optional): Request-level timeout for the HTTP request in seconds.
+            update_mask (List[str], optional): List of field paths to update (e.g.,
+                update_mask = ["name", "contents", "nlg_model_parameters.temperature", "nlg_model_parameters.top_p"])
+
+
+        Returns:
+            dict: API response after validation.
+        """
+        if stop_sequences is None:
+            stop_sequences = []
+
+        if not update_mask:
+            raise ValueError("update_mask must be provided as list of strings and cannot be empty.")
+        if not isinstance(update_mask, list):
+            raise ValueError("update_mask must be a list of field paths to update.")
+
+        # Define allowed fields and nested parameters
+        allowed_fields = {
+            "name",
+            "contents",
+            "nlg_model_parameters.temperature",
+            "nlg_model_parameters.top_p",
+            "nlg_model_parameters.max_tokens",
+            "nlg_model_parameters.stop_sequences",
+            "nlg_model_parameters.frequency_penalty",
+            "nlg_model_parameters.presence_penalty",
+            "post_processing",
+            "run_mode",
+            "parent_id",
+            "position",
+            "metadata",
+            "source",
+            "post_processing_delimiter",
+            "parameters",
+            "nlg_timeout",
+        }
+        # Check each path
+        invalid = [field for field in update_mask if field not in allowed_fields]
+        if invalid:
+            raise ValueError(f"Invalid update_mask field(s): {invalid}. Valid fields are: {sorted(allowed_fields)}")
+
+        # Always include ID
+        prompt_payload = {
+            "id": prompt_id,
+        }
+
+        # Optional fields added only if they are present in update_mask
+        if update_mask is None or "name" in update_mask:
+            if name:
+                prompt_payload["name"] = name
+
+        if update_mask is None or "contents" in update_mask:
+            if contents is not None:
+                prompt_payload["contents"] = contents
+
+        if update_mask is None or any(k.startswith("nlg_model_parameters") for k in update_mask):
+            prompt_payload["nlg_model_parameters"] = {}
+            if "nlg_model_parameters.temperature" in update_mask:
+                prompt_payload["nlg_model_parameters"]["temperature"] = temperature
+            if "nlg_model_parameters.top_p" in update_mask:
+                prompt_payload["nlg_model_parameters"]["top_p"] = top_p
+            if "nlg_model_parameters.max_tokens" in update_mask:
+                prompt_payload["nlg_model_parameters"]["max_tokens"] = max_tokens
+            if "nlg_model_parameters.stop_sequences" in update_mask:
+                prompt_payload["nlg_model_parameters"]["stop_sequences"] = stop_sequences
+            if "nlg_model_parameters.frequency_penalty" in update_mask:
+                prompt_payload["nlg_model_parameters"]["frequency_penalty"] = frequency_penalty
+            if "nlg_model_parameters.presence_penalty" in update_mask:
+                prompt_payload["nlg_model_parameters"]["presence_penalty"] = presence_penalty
+
+        # Only add nlg_model_parameters if it's not empty
+        if "nlg_model_parameters" in prompt_payload and not prompt_payload["nlg_model_parameters"]:
+            del prompt_payload["nlg_model_parameters"]
+
+        # Only include if listed in update_mask
+        if update_mask is None or "post_processing" in update_mask:
+            prompt_payload["post_processing"] = post_processing
+
+        if update_mask is None or "run_mode" in update_mask:
+            prompt_payload["run_mode"] = run_mode
+
+        if update_mask is None or "parent_id" in update_mask:
+            if parent_id:
+                prompt_payload["parent_id"] = parent_id
+
+        if update_mask is None or "position" in update_mask:
+            if position is not None:
+                prompt_payload["position"] = position
+
+        if update_mask is None or "metadata" in update_mask:
+            if metadata:
+                prompt_payload["metadata"] = metadata
+
+        if update_mask is None or "source" in update_mask:
+            if source:
+                prompt_payload["source"] = source
+
+        if update_mask is None or "post_processing_delimiter" in update_mask:
+            if post_processing_delimiter:
+                prompt_payload["post_processing_delimiter"] = post_processing_delimiter
+
+        if update_mask is None or "parameters" in update_mask:
+            if parameters:
+                prompt_payload["parameters"] = parameters
+
+        if update_mask is None or "nlg_timeout" in update_mask:
+            if nlg_timeout:
+                prompt_payload["nlg_timeout"] = nlg_timeout
+
+        mask = FieldMask(paths=update_mask)  # pylint: disable=no-value-for-parameter
+        mask_json = MessageToDict(mask, preserving_proto_field_name=True)
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "prompt": prompt_payload,
+            "update_mask": mask_json
+        }
+
+        headers = self._get_headers()
+        url = f"{self.base_url}/{self.api_version}/workspaces/{namespace}/{playbook_id}/prompts/{prompt_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.put(
+            url,
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=effective_timeout
+        )
+
+        return self._validate_response(response=response, url=url)
+
+    # *****************************************************************************************************************
     # Conversation Source - including add files
     # *****************************************************************************************************************
 
@@ -1408,9 +1791,10 @@ class HFAPI:
                                                 no_trigger: bool = False) -> dict:
         '''Upload a JSON file to a conversation source
         no_trigger=True prevents indexes from building if passed in case you want to delete
-        or upload additional files before triggering them.  If you use this you must 
+        or upload additional files before triggering them. If you use this you must 
         upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
         your conversation set will not be available to other processes.'''
+
         payload = {
             "namespace": namespace
         }
@@ -1419,10 +1803,29 @@ class HFAPI:
 
         url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
 
-        # file_in = open(fqfp,mode="r",encoding="utf8")
-        # json.load(file_in)
-        # file_in.close()
-        upload_file = open(fqfp, 'rb')
+        # Read raw file bytes
+        with open(fqfp, 'rb') as f:
+            raw = f.read()
+
+        # Gzip if not already
+        lower = fqfp.lower()
+        if lower.endswith('.gz') or lower.endswith('.json.gz'):
+            gzipped_bytes = raw
+        else:
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+                gz.write(raw)
+            gzipped_bytes = buf.getvalue()
+
+        # Normalize upload filename to .json.gz
+        base, ext = os.path.splitext(upload_name)
+        if ext.lower() in ('.gz', '.json.gz'):
+            fname = upload_name
+        elif ext.lower() == '.json':
+            fname = f"{base}.json.gz"
+        else:
+            fname = f"{upload_name}.json.gz"
+
         if no_trigger:
             str_no_trigger = "true"
         else:
@@ -1430,10 +1833,214 @@ class HFAPI:
         payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
         fields={
             'format': 'IMPORT_FORMAT_HUMANFIRST_JSON',
+            'no_trigger': str_no_trigger,
+            # seem to remember there is a problem with encoding multiple fields
+            # in the toolbelt multipart encoder but this seems effective during testing
+            # if I remember correctly this is present where the values are subobjects,
+            # but this is top level so seems OK?
+            'file': (fname, io.BytesIO(gzipped_bytes), 'application/gzip')}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
+
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_csv_file_to_conversation_source(self,
+                                                namespace: str,
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str,
+                                                *,
+                                                header_included: bool = True,
+                                                import_as_utterances: bool = False,
+                                                id_column: int = None,
+                                                date_column: int = None,
+                                                date_format: str = 'UNIX_TIMESTAMP_MS',
+                                                source_column: int = None,
+                                                client_name: str = '',
+                                                agent_name: str = '',
+                                                text_column: int = 0,
+                                                metadata_columns: list[int] = None,
+                                                delimiter: str = ',',
+                                                timeout: float = None,
+                                                no_trigger: bool = False) -> dict:
+        '''Upload a CSV file to a conversation source
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them. If you use this you must 
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes.
+        
+        Date Format Options (for `date_format` in IMPORT_FORMAT_SIMPLE_CSV):
+        • UNIX_TIMESTAMP_MS          - 0 - Milliseconds since the Unix epoch.
+        • UNIX_TIMESTAMP_SEC         - 1 - Seconds since the Unix epoch.
+        • DATE_TIME_YEAR_FIRST       - 2 - “YYYY-MM-DD” style date strings.
+        • DATE_TIME_MONTH_FIRST      - 3 - “MM-DD-YYYY” style date strings.
+        • DATE_TIME_SLASH_MONTH_FIRST- 4 - “MM/DD/YYYY” style date strings.
+        • RFC3339                    - 5 - Full RFC3339 timestamp strings
+                                        (e.g. “2025-06-11T14:23:00Z”).
+                
+        
+        Supports both gzipped and non-gziped CSV files.
+        '''
+
+        timestamp_dict = {
+            'UNIX_TIMESTAMP_MS': 0,
+            'UNIX_TIMESTAMP_SEC': 1,
+            'DATE_TIME_YEAR_FIRST': 2,
+            'DATE_TIME_MONTH_FIRST': 3,
+            'DATE_TIME_SLASH_MONTH_FIRST': 4,
+            'RFC3339': 5
+        }
+
+        # Read the input file bytes and determine if it's already gzipped
+        with open(fqfp, 'rb') as f:
+            raw = f.read()
+
+        if fqfp.lower().endswith('.gz'):
+            # already gzipped
+            gzipped_bytes = raw
+            # decompress to get CSV text for header parsing
+            with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
+                csv_bytes = gz.read()
+        else:
+            # plain CSV: keep raw for header parsing, and gzip it for upload
+            csv_bytes = raw
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+                gz.write(raw)
+            gzipped_bytes = buf.getvalue()
+
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
+
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
+
+        # Auto-derive metadata_columns if not provided
+        if metadata_columns is None:
+            # read just the first line
+            header_line = csv_bytes.split(b'\n', 1)[0].decode('utf-8')
+            cols = header_line.split(delimiter)
+            used = {
+                idx for idx in (
+                    id_column, date_column, source_column, text_column
+                ) if isinstance(idx, int)
+            }
+            metadata_columns = [
+                i for i in range(len(cols)) if i not in used
+            ]
+
+        # 3) Build the column_mapper_options dict
+        if import_as_utterances:
+            column_mapper_options = {
+                "header_included": header_included,
+                "import_as_utterances": True,
+                "text_column": text_column,
+                "id_column": None,
+                "date_column": None,
+                "date_format": timestamp_dict[date_format],
+                "source_column": None,
+                "client_name": "",
+                "agent_name": "",
+                "tag_columns": [],
+                "tag_list_column": None,
+                "metadata_columns": [{"index": i} for i in metadata_columns],
+                "delimiter": delimiter
+            }
+        else:
+            column_mapper_options = {
+                "header_included": header_included,
+                "import_as_utterances": False,
+                "id_column": {"value": id_column} if id_column is not None else None,
+                "date_column": {"value": date_column} if date_column is not None else None,
+                "date_format": timestamp_dict[date_format],
+                "source_column": {"value": source_column} if source_column is not None else None,
+                "client_name": client_name,
+                "agent_name": agent_name,
+                "text_column": text_column if text_column is not None else None,
+                "tag_columns": [],
+                "tag_list_column": None,
+                "metadata_columns": [{"index": i} for i in metadata_columns],
+                "delimiter": delimiter
+            }
+
+        # 4) Normalize filename to .csv.gz
+        base, ext = os.path.splitext(upload_name)
+        if ext.lower() in ['.gz', '.csv.gz']:
+            fname = upload_name
+        elif ext.lower() == '.csv':
+            fname = f"{base}.csv.gz"
+        else:
+            fname = f"{upload_name}.csv.gz"
+
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_SIMPLE_CSV',
+            'no_trigger': str_no_trigger,
+            # seem to remember there is a problem with encoding multiple fields in the 
+            # toolbelt multipart encoder but this seems effective during testing
+            # this is present where the values are subobjects, but this is top level so seems OK?
+            'file': (fname, io.BytesIO(gzipped_bytes), 'application/gzip'),
+            "column_mapper_options": json.dumps(column_mapper_options)}
+        )
+        # This is the magic bit - you must set the content type to include the boundary information
+        # multipart encoder makes working these out easier
+        headers["Content-Type"] = payload.content_type
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "POST", url, headers=headers, data=payload, timeout=effective_timeout)
+        return self._validate_response(response, url, "playbooks")
+
+    def upload_doc_file_to_conversation_source(self, namespace: str,
+                                                conversation_source_id: str,
+                                                upload_name: str,
+                                                fqfp: str,
+                                                timeout: float = None,
+                                                no_trigger: bool = False) -> dict:
+        '''Upload a document file to a conversation source
+        no_trigger=True prevents indexes from building if passed in case you want to delete
+        or upload additional files before triggering them. If you use this you must 
+        upload or delete a final file with no_trigger=False (the default) otherwise the new data in 
+        your conversation set will not be available to other processes.
+        
+        Does not support Gzipped data
+        '''
+        payload = {
+            "namespace": namespace
+        }
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/files/{namespace}/{conversation_source_id}"
+
+        upload_file = open(fqfp, 'rb')
+        if no_trigger:
+            str_no_trigger = "true"
+        else:
+            str_no_trigger = "false"
+        payload = requests_toolbelt.multipart.encoder.MultipartEncoder(
+        fields={
+            'format': 'IMPORT_FORMAT_DOCUMENT',
             'no_trigger': str_no_trigger, 
-            # seem to remember there is a problem with encoding multiple fields in the toolbelt multipart encoder but this seems effective during testing
-            # if I remember correctly this is present where the values are subobjects, but this is top level so seems OK?
-            'file': (upload_name, upload_file, 'application/json')}
+            # seem to remember there is a problem with encoding multiple fields in the 
+            # toolbelt multipart encoder but this seems effective during testing
+            # this is present where the values are subobjects, but this is top level so seems OK?
+            'file': (upload_name, upload_file)}
         )
         # This is the magic bit - you must set the content type to include the boundary information
         # multipart encoder makes working these out easier
@@ -1525,7 +2132,7 @@ class HFAPI:
             dedup_by_convo: bool = False,
             exclude_phrase_objects: bool = True, # TODO: unclear why this is set
             source_kind: int = 2, # DEFAULT TO GENERATED
-            source: int = 1, # DEFAULT to "client" - i.e get the client utterances 
+            source: int = 1, # DEFAULT to "client" - i.e get the client utterances
             timeout: float = None
             ) -> dict:
         '''Returns the generated data as as JSON or a as a
@@ -2056,10 +2663,14 @@ class HFAPI:
         that it took to reach this state (active time and wait time included - so may be different to number of loops)
         if it reaches it's max number of loops value before receiving an error or success state it will return 0
         
-        Between each loop it waits the amount of time last waited times the exponential_factor for an exponential backoff option.
-        By default this is 1 so it will wait the same amount of time each loop, set it to 2 for instance to wait twice as long each loop.
+        Between each loop it waits the amount of time last waited times the exponential_factor
+        for an exponential backoff option.
+        
+        By default this is 1 so it will wait the same amount of time each loop,
+        set it to 2 for instance to wait twice as long each loop.
 
-        Default wait is 1 second, expontential off, max default loops is 240 with an api timeout of 120s - so it will wait at least 4 minutes
+        Default wait is 1 second, exponential backoff, max default loops is 240 with an api timeout of 120s
+        so it will wait at least 4 minutes
         Plus any API call time.
         
         """
@@ -2067,7 +2678,7 @@ class HFAPI:
         loops = 0
         done = False
         wait = wait_seconds_between_loops
-        while done == False:
+        while done is False:
             # wait if not the first loop
             if loops > 0:
                 time.sleep(wait)

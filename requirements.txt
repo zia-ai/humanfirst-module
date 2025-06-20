@@ -16,3 +16,4 @@ python-dotenv
 pytest-cov
 ntplib
 PyJWT[crypto]
+protobuf
