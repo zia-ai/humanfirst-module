@@ -10,11 +10,11 @@ Humanfirst tests
 import time
 import os
 import json
+import logging
 from configparser import ConfigParser
 from datetime import datetime
 import uuid
 from dateutil import parser
-import logging
 
 
 # third party imports
@@ -59,7 +59,7 @@ DEFAULT_DELIMITER = constants.get("humanfirst.CONSTANTS","DEFAULT_DELIMITER")
 TEST_CONVOSET = constants.get("humanfirst.CONSTANTS","TEST_CONVOSET")
 
 # Which environment the test is running on is signficant.
-logger.info(f'Running test on HF_ENVIRONMENT={os.environ.get("HF_ENVIRONMENT")}')
+logger.info('Running test on HF_ENVIRONMENT=%s',os.environ.get("HF_ENVIRONMENT"))
 
 def _playbook_is_present(hf_api: humanfirst.apis.HFAPI,
                         namespace: str,
@@ -159,30 +159,30 @@ def test_list_playbooks():
     try:
         conversation_obj = hf_api.create_conversation_set_with_set_and_src_id(namespace=TEST_NAMESPACE,
                                                                             convoset_name=TEST_CONVOSET)
-        logger.info(f'Created playbook: {conversation_obj}')
+        logger.info('Created playbook: %s',conversation_obj)
 
         upload_json_file_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
                                                                 conversation_source_id=conversation_obj["convosrc_id"],
                                                                 upload_name="abcd_108_test",
                                                                 fqfp="./examples/abcd_2022_05_convo_108.json"
                                                                 )
-        logger.debug(f'Uploaded JSON file response: {upload_json_file_response}')
+        logger.debug('Uploaded JSON file response: %s',upload_json_file_response)
         try:
             playbook_id1 = _create_playbook(hf_api,
                                     namespace=TEST_NAMESPACE,
                                     playbook_name="test list playbooks 1")
-            logger.info(f'Created Playbook1: {playbook_id1}')
+            logger.info('Created Playbook1: %s', playbook_id1)
 
             try:
                 playbook_id2 = _create_playbook(hf_api,
                                     namespace=TEST_NAMESPACE,
                                     playbook_name="test list playbooks 2")
-                logger.info(f'Created Playbook2: {playbook_id2}')
+                logger.info('Created Playbook2: %s', playbook_id2)
 
                 try:
                     link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE, playbook_id=playbook_id2,
                                                             convoset_id=conversation_obj["convoset_id"])
-                    logger.info(f'Linked Conversation Sets awaiting trigger next: {link_res}')
+                    logger.info('Linked Conversation Sets awaiting trigger next: %s',link_res)
 
                     # check if the link trigger is completed
                     total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
@@ -192,7 +192,7 @@ def test_list_playbooks():
                     elif total_wait_time == 0:
                         raise RuntimeError('Link pipeline timed out')
                     else:
-                        logger.info(f'Link convoset completed in: {total_wait_time}')
+                        logger.info('Link convoset completed in: %s',total_wait_time)
 
                     # test list playbooks filtering the playbooks with conversation set attached
                     list_playbooks_res2 = hf_api.list_playbooks(namespace=TEST_NAMESPACE,
@@ -219,7 +219,7 @@ def test_list_playbooks():
                     elif total_wait_time == 0:
                         raise RuntimeError('Unlink ipeline timed out')
                     else:
-                        logger.info(f'Unlink convoset completed in: {total_wait_time}')
+                        logger.info('Unlink convoset completed in: %s',total_wait_time)
 
                     # delete conversation set
                     delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
@@ -725,7 +725,7 @@ def test_conversation_set_functionalities():
         assert isinstance(conversation_obj["convosrc_id"], str)
         assert "convset-" in conversation_obj["convoset_id"]
         assert "convsrc-" in conversation_obj["convosrc_id"]
-        logger.info(f'Created convoset_id: {conversation_obj["convoset_id"]}')
+        logger.info('Created convoset_id: %s',conversation_obj["convoset_id"])
 
         # test upload a file to the conversation set
         upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
@@ -733,7 +733,7 @@ def test_conversation_set_functionalities():
                                                                 upload_name="abcd_108_test",
                                                                 fqfp="./examples/abcd_2022_05_convo_108.json"
                                                                 )
-        logger.info(f'Uploaded JSON: {upload_response}')
+        logger.info('Uploaded JSON: %s',upload_response)
 
         assert isinstance(upload_response,dict)
         assert upload_response["filename"] == "abcd_108_test.json.gz"
@@ -754,7 +754,7 @@ def test_conversation_set_functionalities():
         upload_datetime = parser.parse(upload_time)
         assert isinstance(upload_datetime,datetime)
 
-        logger.info(f'Listed files: {list_files}')
+        logger.info('Listed files: %s',list_files)
 
         # test linking the conversation set to a workspace
         try:
@@ -764,7 +764,7 @@ def test_conversation_set_functionalities():
                                     playbook_name="test link-unlink dataset")
 
             assert "playbook-" in playbook_id
-            logger.info(f'Created playbook: {playbook_id}')
+            logger.info('Created playbook: %s', playbook_id)
 
             try:
                 link_res = hf_api.link_conversation_set(namespace=TEST_NAMESPACE, playbook_id=playbook_id,
@@ -781,7 +781,7 @@ def test_conversation_set_functionalities():
                 elif total_wait_time == 0:
                     raise RuntimeError('Link pipeline timed out')
                 else:
-                    logger.info(f'Link convoset completed in: {total_wait_time}')
+                    logger.info('Link convoset completed in: %s',total_wait_time)
 
                 # return empty json when there is no changes made in the tool
                 # trying to link the same dataset to the same workspace as above
@@ -842,7 +842,7 @@ def test_conversation_set_functionalities():
                 elif total_wait_time == 0:
                     raise RuntimeError('Link pipeline timed out')
                 else:
-                    logger.info(f'Link convoset completed in: {total_wait_time}')
+                    logger.info('Link convoset completed in: %s',total_wait_time)
 
                 # return empty json when there is no changes made in the tool
                 # trying to unlink the same dataset from the same workspace as above
@@ -869,7 +869,7 @@ def test_conversation_set_functionalities():
                 elif total_wait_time == 0:
                     raise RuntimeError('Delete pipeline timed out')
                 else:
-                    logger.info(f'Delete convoset completed in: {total_wait_time}')
+                    logger.info('Delete convoset completed in: %s',total_wait_time)
 
                 # Test deleting a file from a convoset with exception
                 output_exception = ""
@@ -928,7 +928,7 @@ def test_batch_predict():
     playbook = hf_api.create_playbook(namespace=TEST_NAMESPACE,playbook_name="test_batch_predict")
     playbook_id = playbook["metastorePlaybook"]["id"]
     nlu_id = playbook["metastorePlaybook"]["nlu"]["id"]
-    logger.info(f'nlu_id: {nlu_id}')
+    logger.info('nlu_id: %s',nlu_id)
 
     # Read a JSON file of humanfirst training
     file_in = open('examples/Academy-Ex03-Disambiguation-2024-09-15.json',mode='r',encoding='utf8')
@@ -962,7 +962,7 @@ def test_batch_predict():
     elif total_wait_time == -1:
         raise RuntimeError('NLU Training cancelled')
     else:
-        logger.info(f"Total wait for NLU to train is: {total_wait_time}")
+        logger.info("Total wait for NLU to train is: %s",total_wait_time)
 
     # Also then poll check for being trained (should already be when trigger completes above)
     sleep_counter = 0 # doing linear rather than expo backoff in this test
@@ -974,7 +974,7 @@ def test_batch_predict():
         total_wait_time = total_wait_time + sleep_counter
         list_trained_nlu = hf_api.list_trained_nlu(namespace=TEST_NAMESPACE,
                                   playbook=playbook_id)
-        logger.info(f"List trained NLU: {list_trained_nlu}")
+        logger.info("List trained NLU: %s", list_trained_nlu)
         if sleep_counter > 60:
             raise RuntimeError("Counted get trained NLU")
 
@@ -988,7 +988,7 @@ def test_batch_predict():
                 status = nlu["status"]
                 total_wait_time = total_wait_time + sleep_counter
                 sleep_counter = sleep_counter + 1
-                logger.debug(f'{status} - wait time: {sleep_counter} - total time waited to date: {total_wait_time}')
+                logger.debug('%s - wait time: %s - total time waited to date: %s',status,sleep_counter,total_wait_time)
                 time.sleep(sleep_counter)
         if sleep_counter > 60:
             raise RuntimeError("Couldn't get nlu to showcorrect status")
@@ -1009,7 +1009,7 @@ def test_batch_predict():
 
     # make the predictions really big and then set timeout to one so almost certainly failes
     big_sentences = []
-    for n in range(0,100):
+    for _ in range(0,100):
         big_sentences.extend(sentences)
     assert len(big_sentences) == 300
 
@@ -1071,7 +1071,7 @@ def test_no_trigger():
                                                             fqfp="./examples/abcd_2022_05_convo_108.json",
                                                             no_trigger=True
                                                             )
-    logger.debug(upload_response)    
+    logger.debug(upload_response)
     assert not "triggerId" in upload_response.keys()
 
     # test a second file with trigger
@@ -1123,7 +1123,7 @@ def test_cleanup_convosets_and_workspaces():
     # get all workspaces/playbooks
     logger.info('Getting playbook list')
     list_playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE,timeout=120)
-    logger.info(f'Number of playbooks returned: {len(list_playbooks)}')
+    logger.info('Number of playbooks returned: %s',len(list_playbooks))
 
     # find any that match and delete them
     for p in list_playbooks:
@@ -1131,12 +1131,12 @@ def test_cleanup_convosets_and_workspaces():
             if p["name"] in ["test link-unlink dataset","test list playbooks 1","test list playbooks 2"]:
                 playbook_delete_respone = hf_api.delete_playbook(namespace=TEST_NAMESPACE,playbook_id=p['id'])
                 logger.debug(playbook_delete_respone)
-                logger.info(f'Hard deleted playbook: {p["id"]}')
+                logger.info('Hard deleted playbook: %s',p["id"])
 
     # get all convosets
-    logger.info(f'Getting all convosets')
+    logger.info('Getting all convosets')
     convoset_list = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE,timeout=120)
-    logger.info(f'Received convosets: {len(convoset_list)}')
+    logger.info('Received convosets: %s',len(convoset_list))
 
     # Loop through deleting any that exist - assumption is all test workspaces have been deleted
     # i.e no check to unlink, if something is still attached here there is a logical error earlier in the test
@@ -1144,9 +1144,10 @@ def test_cleanup_convosets_and_workspaces():
         if c["name"] == TEST_CONVOSET:
             convoset_delete_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,convoset_id=c["id"])
             logger.debug(convoset_delete_response)
-            logger.info(f'Deleted convoset: {c["id"]}')
-            
+            logger.info('Deleted convoset: %s',c["id"])
+
 def test_get_conversation_set_list_simple():
+    """Test getting a conversation set list"""
     hf_api = humanfirst.apis.HFAPI()
     convosets = hf_api.get_conversation_set_list(namespace=TEST_NAMESPACE)
     # if running with aio image which starts completely empty this will have 0 convosets
@@ -1155,18 +1156,19 @@ def test_get_conversation_set_list_simple():
         assert isinstance(df_simple,pandas.DataFrame)
 
 def test_refresh_minimnum_expiry():
+    """Test that the minimum expiry time is respected"""
     hf_api = humanfirst.apis.HFAPI(min_expires_in_seconds=3597) # i.e only 3 seconds old with window of 1 hour
-    
+
     # list the playbooks - get the first token
-    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
-    
+    _ = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+
     # sleep 0 - should have same token
-    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
-    
+    _ = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+
     # sleep 3 more - should get new token
     time.sleep(3)
-    playbooks = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
-    
+    _ = hf_api.list_playbooks(namespace=TEST_NAMESPACE)
+
 
 
 # This test is for a legacy piece of functionality and very slow so commenting for speed.
