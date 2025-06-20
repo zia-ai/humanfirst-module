@@ -193,7 +193,7 @@ def test_list_playbooks():
                         raise RuntimeError('Link pipeline timed out')
                     else:
                         logger.info(f'Link convoset completed in: {total_wait_time}')
-                        
+
                     # test list playbooks filtering the playbooks with conversation set attached
                     list_playbooks_res2 = hf_api.list_playbooks(namespace=TEST_NAMESPACE,
                                                             conversation_set_id=conversation_obj["convoset_id"])
@@ -736,7 +736,7 @@ def test_conversation_set_functionalities():
         logger.info(f'Uploaded JSON: {upload_response}')
 
         assert isinstance(upload_response,dict)
-        assert upload_response["filename"] == "abcd_108_test"
+        assert upload_response["filename"] == "abcd_108_test.json.gz"
         assert len(set(upload_response.keys()).intersection({"triggerId","conversationSourceId"})) == 2
         logger.debug(upload_response)
 
@@ -747,13 +747,13 @@ def test_conversation_set_functionalities():
                                                         conversation_set_src_id=conversation_obj["convosrc_id"])
         assert isinstance(list_files,list)
         assert len(list_files) == 1
-        assert list_files[0]["name"] == "abcd_108_test"
+        assert list_files[0]["name"] == "abcd_108_test.json.gz"
         assert list_files[0]["format"] == "IMPORT_FORMAT_HUMANFIRST_JSON"
         assert isinstance(list_files[0]["fromLastUpload"],bool)
         upload_time = list_files[0]["uploadTime"]
         upload_datetime = parser.parse(upload_time)
         assert isinstance(upload_datetime,datetime)
-        
+
         logger.info(f'Listed files: {list_files}')
 
         # test linking the conversation set to a workspace
@@ -789,7 +789,7 @@ def test_conversation_set_functionalities():
                                                         playbook_id=playbook_id,
                                                         convoset_id=conversation_obj["convoset_id"])
                 assert link_res == {}
-                
+
                 # Check that we can download the full conversations
                 # build the metadata_predicate
                 metadata_predicate = []
@@ -809,7 +809,7 @@ def test_conversation_set_functionalities():
                                                                       source_kind=1,# unlabelled
                                                                       source=-1, # skip source
                 )
-                assert("examples" in test_convos.keys())
+                assert "examples" in test_convos.keys()
                 assert len(test_convos["examples"]) == 14 # 14 utterances in test set
                 # check the ordering is maintained
                 assert test_convos["examples"][0]["metadata"]["conversation_turn"] == "000"
@@ -854,7 +854,7 @@ def test_conversation_set_functionalities():
                 # Test deleting a file from a convoset
                 delete_res = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                             conversation_set_src_id=conversation_obj["convosrc_id"],
-                                                            file_name="abcd_108_test"
+                                                            file_name="abcd_108_test.json.gz"
                                                             )
 
                 assert "triggerId" in delete_res
@@ -870,13 +870,13 @@ def test_conversation_set_functionalities():
                     raise RuntimeError('Delete pipeline timed out')
                 else:
                     logger.info(f'Delete convoset completed in: {total_wait_time}')
-                
+
                 # Test deleting a file from a convoset with exception
                 output_exception = ""
                 try:
                     hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                     conversation_set_src_id=conversation_obj["convosrc_id"],
-                                                    file_name="abcd_108_test"
+                                                    file_name="abcd_108_test.json.gz"
                                                     )
                 except humanfirst.apis.HFAPIResponseValidationException as e:
                     output_exception = str(e.message)
@@ -940,11 +940,12 @@ def test_batch_predict():
                           playbook=playbook_id,
                           workspace_as_dict=workspace_dict)
     logger.debug(import_intents_response)
-    
-    # this is going to start an import job but we aren't quite sure when it finsihes and we don't have an import trigger to check
+
+    # this is going to start an import job but we aren't quite sure when
+    # it finsihes and we don't have an import trigger to check
     # so wait a moment before triggering NLU this improves reliability of the test.
     time.sleep(1)
-    
+
     # train the NLU on that workspace
     train_nlu_trigger = hf_api.trigger_train_nlu(namespace=TEST_NAMESPACE,
                                                 playbook=playbook_id,
@@ -953,15 +954,16 @@ def test_batch_predict():
     logger.debug(train_nlu_trigger)
 
     # Use describetrigger to know the status of NLU training
-    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE, trigger_id=train_nlu_trigger["triggerId"])
-    
+    total_wait_time = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,
+                                                trigger_id=train_nlu_trigger["triggerId"])
+
     if total_wait_time == 0:
-        raise RuntimeError(f'Timed out waiting for NLU to finish training')
+        raise RuntimeError('Timed out waiting for NLU to finish training')
     elif total_wait_time == -1:
-        raise RuntimeError(f'NLU Training cancelled')
+        raise RuntimeError('NLU Training cancelled')
     else:
         logger.info(f"Total wait for NLU to train is: {total_wait_time}")
-    
+
     # Also then poll check for being trained (should already be when trigger completes above)
     sleep_counter = 0 # doing linear rather than expo backoff in this test
     total_wait_time = 0
@@ -1049,8 +1051,8 @@ def test_no_trigger():
     # test create conversation set
     conversation_obj = hf_api.create_conversation_set_with_set_and_src_id(namespace=TEST_NAMESPACE,
                                                                             convoset_name=TEST_CONVOSET)
-    
-    
+
+
     # link a workspace
     playbook_id = _create_playbook(hf_api,
                             namespace=TEST_NAMESPACE,
@@ -1060,8 +1062,8 @@ def test_no_trigger():
     logger.debug(link_response)
     assert "triggerId" in link_response.keys()
     wait_time_till_done = hf_api.loop_trigger_check(namespace=TEST_NAMESPACE,trigger_id=link_response["triggerId"])
-    
-    
+
+
     # test upload a file to the conversation set with no trigger
     upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
                                                             conversation_source_id=conversation_obj["convosrc_id"],
@@ -1071,7 +1073,7 @@ def test_no_trigger():
                                                             )
     logger.debug(upload_response)    
     assert not "triggerId" in upload_response.keys()
-    
+
     # test a second file with trigger
     upload_response = hf_api.upload_json_file_to_conversation_source(namespace=TEST_NAMESPACE,
                                                             conversation_source_id=conversation_obj["convosrc_id"],
@@ -1089,7 +1091,7 @@ def test_no_trigger():
     # delete a file the same way starting with the most recent
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                       conversation_set_src_id=conversation_obj["convosrc_id"],
-                                                      file_name="abcd_109_test",
+                                                      file_name="abcd_109_test.json.gz",
                                                       no_trigger=True)
     logger.debug(delete_response)
     assert not "triggerId" in delete_response.keys()
@@ -1097,7 +1099,7 @@ def test_no_trigger():
     # Now delete and check the trigger
     delete_response = hf_api.delete_conversation_file(namespace=TEST_NAMESPACE,
                                                       conversation_set_src_id=conversation_obj["convosrc_id"],
-                                                      file_name="abcd_108_test",
+                                                      file_name="abcd_108_test.json.gz",
                                                       no_trigger=False)
     logger.debug(delete_response)
 
@@ -1112,7 +1114,7 @@ def test_no_trigger():
     delete_convo_response = hf_api.delete_conversation_set(namespace=TEST_NAMESPACE,
                                                         convoset_id=conversation_obj["convoset_id"])
     logger.info(delete_convo_response)
-    
+
 def test_cleanup_convosets_and_workspaces():
     """testing delete test convosets if exist"""
 
