@@ -2639,6 +2639,115 @@ class HFAPI:
             "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
         return self._validate_response(response, url, field="pipelines")
 
+    def get_playbook_pipeline(self,
+                              namespace: str,
+                              playbook_id: str,
+                              pipeline_id: str,
+                              timeout: float = None) -> dict:
+        """List specific pipeline from a given playbook"""
+
+        payload = {}
+
+        headers = self._get_headers()
+
+        url = f"{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook_id}/pipelines/{pipeline_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.request(
+            "GET", url, headers=headers, data=json.dumps(payload), timeout=effective_timeout)
+        return self._validate_response(response=response, url=url)
+
+    def update_playbook_pipeline(self, namespace: str,
+                    playbook_id: str,
+                    pipeline_id: str,
+                    update_mask: List[str],
+                    timeout: Optional[float] = None) -> dict:
+        """
+        Updates the date filter to current day in a pipeline inside a playbook.
+
+        Args:
+            namespace (str): Namespace of the playbook.
+            playbook_id (str): ID of the playbook.
+            pipeline_id (str): ID of the pipeline to update.
+            timeout (float, optional): Timeout for the request in seconds.
+            update_mask (List[str], optional): List of field paths to update (e.g.,
+                update_mask = ["name", "steps.data_query.queries.query.predicates"])
+
+
+        Returns:
+            dict: API response after validation.
+
+        TODO: Update this to support more than just the date filter
+        """
+
+        if not update_mask:
+            raise ValueError("update_mask must be provided as list of strings and cannot be empty.")
+        if not isinstance(update_mask, list):
+            raise ValueError("update_mask must be a list of field paths to update.")
+
+        mask = FieldMask(paths=update_mask)  # pylint: disable=no-value-for-parameter
+        mask_json = MessageToDict(mask, preserving_proto_field_name=True)
+        # current moment in UTC
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+        # start of day (00:00:00)
+        start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # end of day (just before next midnight)
+        end_of_day = start_of_day + datetime.timedelta(days=1) - datetime.timedelta(microseconds=1)
+
+        # format as Z-terminated ISO strings
+        start_iso = start_of_day.isoformat().replace("+00:00", "Z")
+        end_iso   = end_of_day.isoformat().replace("+00:00", "Z")
+
+        pipeline_payload = {
+            "steps": [
+                {
+                    "dataQuery": {
+                        "queries": [
+                            {
+                                "query": {
+                                "@type": "type.googleapis.com/zia.ai.playbook.SimpleQueryRequest",
+                                "predicates": [
+                                    {
+                                        "date": {
+                                            "start": start_iso,
+                                            "end": end_iso
+                                        }
+                                    }
+                                ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+        payload = {
+            "namespace": namespace,
+            "playbook_id": playbook_id,
+            "pipeline_id": pipeline_id,
+            "pipeline": pipeline_payload,
+            "update_mask": mask_json,
+            "update_all": False
+        }
+
+        headers = self._get_headers()
+        url = f"{self.base_url}/{self.api_version}/playbooks/{namespace}/{playbook_id}/pipelines/{pipeline_id}"
+
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        response = requests.put(
+            url,
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=effective_timeout
+        )
+
+        return self._validate_response(response=response, url=url)
+
     def loop_trigger_check(self,
                             namespace: str,
                             trigger_id: str,
